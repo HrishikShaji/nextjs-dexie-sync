@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import chatDB from "../local/chat-db";
-import { LocalMessage } from "../types/chat.type";
+import { LocalMessage, SyncResponse, SyncResult } from "../types/chat.type";
 import { generateAIResponse } from "../lib/generateAIResponse";
 import { getSyncColor } from "@/lib/utils";
 
@@ -16,6 +16,83 @@ export default function ChatInterface({ activeConversation, updateConversationTi
 	const [isProcessing, setIsProcessing] = useState(false);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+
+	async function syncMessages(unsyncedMessages: LocalMessage[]) {
+		console.log("@@UNSYNCED CONVERSATIONS", unsyncedMessages)
+
+		if (!activeConversation) return
+
+		const response = await fetch('/api/messages', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({ unsyncedMessages, conversationId: activeConversation }),
+		});
+
+		if (!response.ok) {
+			throw new Error(`HTTP error! status: ${response.status}`);
+		}
+
+		const { success, results }: SyncResponse = await response.json();
+
+		if (success) {
+			// Update local items with sync status and server-generated IDs
+			console.log("@@THESE ARE RESULTS", results)
+			{/*
+					await Promise.all(
+				results.map(
+					async (result: SyncResult, index: number) => {
+						if (result.status === "success") {
+							const localItem = unsyncedMessages[index];
+							// Update the local item with the server-generated ID
+							await chatDB.conversations.where("id").equals(localItem.id).modify({
+								syncStatus: "synced",
+							});
+							return { id: result.id, status: "synced" };
+						} else {
+							const localItem = unsyncedMessages[index];
+							await chatDB.conversations.where("id").equals(localItem.id).modify({
+								syncStatus: "error",
+							});
+							return { id: localItem.id, status: "error" };
+						}
+					}
+				)
+			);
+
+		*/}
+
+			// Trigger a refresh of all items
+			const currentConversation = await chatDB.conversations.get(activeConversation);
+			const allMessages = currentConversation?.messages
+		} else {
+			throw new Error("Failed to sync items");
+		}
+	}
+
+
+
+	useEffect(() => {
+
+
+
+		const autoSync = async () => {
+			if (!activeConversation) return
+			const conversation = await chatDB.conversations.get(activeConversation)
+			console.log(conversation)
+			if (!conversation) return
+			const unsyncedMessages = conversation.messages.filter((msg) => msg.syncStatus === "pending");
+			if (unsyncedMessages.length > 0) {
+				console.log("Auto-syncing batch of pending messages:", unsyncedMessages);
+				syncMessages(unsyncedMessages)
+			}
+		};
+
+		const interval = setInterval(autoSync, 5000); // Batch sync every 5 seconds
+		return () => clearInterval(interval);
+	}, [activeConversation]);
+
 
 	const scrollToBottom = useCallback(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

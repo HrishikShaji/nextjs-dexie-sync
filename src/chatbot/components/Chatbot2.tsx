@@ -267,7 +267,7 @@ export default function Chatbot() {
 					{conversations.map((conversation) => (
 						<ConversationCard
 							key={conversation.id}
-							conversation={conversation}
+							conversation={conversation as LocalConversation}
 							activeConversation={activeConversation}
 							switchConversation={switchConversation}
 							deleteConversation={deleteConversation}

@@ -4,18 +4,18 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
 	try {
-		const items = await request.json();
+		const { unsyncedMessages, conversationId } = await request.json();
 
-		console.log("syncing called", items)
+		console.log("syncing called", unsyncedMessages, conversationId)
 		const results = await Promise.all(
-			items.map(async (item: { message: LocalMessage, conversationId: string }) => {
+			unsyncedMessages.map(async (item: LocalMessage) => {
 				try {
 					const savedMessage = await prisma.message.create({
 						data: {
-							id: item.message.id,
-							text: item.message.text,
-							conversationId: item.conversationId,
-							sender: item.message.sender
+							id: item.id,
+							text: item.text,
+							conversationId,
+							sender: item.sender
 						},
 					});
 
@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
 				} catch (error) {
 					console.error('Error saving item:', error);
 					return {
-						conversationId: item.conversationId,
-						id: item.message.id,
+						conversationId,
+						id: item.id,
 						status: 'error'
 					};
 				}
