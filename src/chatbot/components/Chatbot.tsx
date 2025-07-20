@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Conversation, LocalConversation, LocalMessage, Message } from '../types/chat.type';
 import chatDB from '../local/chat-db';
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { delay } from '@/lib/utils';
 
 export default function Chatbot() {
 	const [messages, setMessages] = useState<Message[]>([]);
@@ -10,6 +10,7 @@ export default function Chatbot() {
 	const [conversations, setConversations] = useState<Conversation[]>([]);
 	const [activeConversation, setActiveConversation] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [localMessages, setLocalMessages] = useState<LocalMessage[]>([])
 
 	const aiResponses: string[] = [
 		"I'm an AI assistant. How can I help you today?",
@@ -26,6 +27,20 @@ export default function Chatbot() {
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [messages]);
+
+	useEffect(() => {
+		if (activeConversation) {
+			getLocalMessages(activeConversation)
+		}
+	}, [activeConversation])
+
+	async function getLocalMessages(id: string) {
+		const conversation = await chatDB.conversations.get(id)
+		console.log(conversation?.messages)
+		if (conversation?.messages) {
+			setLocalMessages(conversation.messages)
+		}
+	}
 
 	// Initialize with a default conversation
 	useEffect(() => {
@@ -185,13 +200,13 @@ export default function Chatbot() {
 			{/* Chat Window */}
 			<div className="flex-1 flex flex-col">
 				<div className="flex-1 p-6 overflow-y-auto bg-gray-50">
-					{messages.length === 0 ? (
+					{localMessages.length === 0 ? (
 						<div className="text-center mt-12 text-gray-500">
 							<h3 className="text-xl font-semibold mb-2">Start a new conversation</h3>
 							<p>Ask me anything and I'll do my best to respond!</p>
 						</div>
 					) : (
-						messages.map((message) => (
+						localMessages.map((message) => (
 							<div
 								key={message.id}
 								className={`flex mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'
