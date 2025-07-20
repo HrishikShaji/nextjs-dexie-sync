@@ -61,7 +61,6 @@ export default function ChatInterface({ activeConversation, updateConversationTi
 				.modify(conversation => {
 					conversation.messages = [...conversation.messages, ...newMessages];
 					if (newTitle) conversation.title = newTitle;
-					conversation.syncStatus = "pending"; // Keep as local
 				});
 		} catch (error) {
 			console.error('Failed to update local conversation:', error);

@@ -1,7 +1,8 @@
 import { Dispatch, SetStateAction, useCallback, useEffect } from "react";
-import { LocalConversation } from "../types/chat.type"
+import { LocalConversation, SyncResponse, SyncResult } from "../types/chat.type"
 import chatDB from "../local/chat-db";
 import ConversationCard from "./ConversationCard";
+import { syncConversations } from "../lib/syncConversations";
 
 interface Props {
 	conversations: LocalConversation[];
@@ -15,6 +16,25 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 		loadConversations();
 	}, []);
 
+	useEffect(() => {
+
+		const autoSync = async () => {
+			const unsyncedConversations = await chatDB.conversations
+				.where("syncStatus")
+				.equals("pending")
+				.toArray();
+			if (unsyncedConversations.length > 0) {
+				console.log("Auto-syncing batch of pending items:", unsyncedConversations);
+				syncConversations({
+					unsyncedConversations,
+					onSuccess: (conversations) => setConversations(conversations)
+				});
+			}
+		};
+
+		const interval = setInterval(autoSync, 5000); // Batch sync every 5 seconds
+		return () => clearInterval(interval);
+	}, [syncConversations]);
 
 	const loadConversations = useCallback(async () => {
 		try {
@@ -75,6 +95,7 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 			setConversations(prev => [localConversation, ...prev]);
 			setActiveConversation(id);
 		}
+
 	}, []);
 
 	const switchConversation = useCallback((conversationId: string) => {

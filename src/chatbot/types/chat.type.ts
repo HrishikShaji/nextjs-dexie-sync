@@ -11,6 +11,26 @@ export type Conversation = {
 	messages: Message[];
 };
 
+export interface MessageSyncResult {
+	conversationId: string;
+	id: string;
+	status: string;
+}
+
+export interface MessageSyncResponse {
+	success: boolean;
+	results: MessageSyncResult[];
+}
+
+export interface SyncResult {
+	id: number;
+	status: string;
+}
+
+export interface SyncResponse {
+	success: boolean;
+	results: SyncResult[];
+}
 
 export type LocalMessage = {
 	id: string;

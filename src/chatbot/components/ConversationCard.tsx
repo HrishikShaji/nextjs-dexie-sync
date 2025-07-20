@@ -1,8 +1,9 @@
-import { Conversation } from "../types/chat.type";
+import { getSyncColor } from "@/lib/utils";
+import { Conversation, LocalConversation } from "../types/chat.type";
 
 interface Props {
 	activeConversation: string | null;
-	conversation: Conversation;
+	conversation: LocalConversation;
 	switchConversation: (conversationId: string) => void;
 	deleteConversation: (converationId: string) => void;
 }
@@ -32,6 +33,7 @@ export default function ConversationCard({ activeConversation, conversation, swi
 			>
 				×
 			</button>
+			<div className={`${getSyncColor(conversation.syncStatus)} size-4 rounded-full`} />
 		</div>
 
 	)
