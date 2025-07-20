@@ -45,3 +45,16 @@ export async function POST(request: NextRequest) {
 	}
 }
 
+export async function GET(request: NextRequest) {
+	try {
+		const items = await prisma.item.findMany({});
+
+		return NextResponse.json(items);
+	} catch (error) {
+		console.error('Fetch items error:', error);
+		return NextResponse.json(
+			{ error: 'Failed to fetch items' },
+			{ status: 500 }
+		);
+	}
+}

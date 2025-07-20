@@ -6,13 +6,20 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useDeleteItem } from "../hooks/useDeleteItem";
 import { useSyncItems } from "../hooks/useSyncItems";
-
+import { useInitialSync } from "../hooks/useInitialSync";
 
 export default function Dashboard() {
 	const [name, setName] = useState("");
 	const { mutate: syncItems } = useSyncItems();
 	const { mutate: deleteItem } = useDeleteItem();
 	const queryClient = useQueryClient();
+
+	// Initial sync on component mount
+	const {
+		data: initialSyncResult,
+		isLoading: isInitialSyncing,
+		error: initialSyncError
+	} = useInitialSync();
 
 	// Use React Query to manage local items state
 	const { data: localItems = [] } = useQuery({
@@ -22,10 +29,15 @@ export default function Dashboard() {
 			return items;
 		},
 		refetchOnWindowFocus: false,
+		// Don't fetch until initial sync is complete
+		enabled: !isInitialSyncing && !!initialSyncResult,
 	});
 
 	// Auto-sync effect - runs every 5 seconds to batch sync pending items
 	useEffect(() => {
+		// Don't start auto-sync until initial sync is complete
+		if (isInitialSyncing) return;
+
 		const autoSync = async () => {
 			const unsyncedItems = await db.items
 				.where("syncStatus")
@@ -39,7 +51,7 @@ export default function Dashboard() {
 
 		const interval = setInterval(autoSync, 5000); // Batch sync every 5 seconds
 		return () => clearInterval(interval);
-	}, [syncItems]);
+	}, [syncItems, isInitialSyncing]);
 
 	const handleAdd = async (e: any) => {
 		e.preventDefault();
@@ -90,6 +102,38 @@ export default function Dashboard() {
 		(item) => item.syncStatus === "pending"
 	).length;
 
+	// Show loading state during initial sync
+	if (isInitialSyncing) {
+		return (
+			<div className="flex flex-col w-full justify-center items-center p-12">
+				<div className="flex flex-col justify-center items-center max-w-3xl">
+					<h1 className="text-2xl font-medium mb-4">Dexie local sync</h1>
+					<div className="flex items-center gap-2">
+						<div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+						<span>Syncing with server...</span>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	// Show error state if initial sync failed
+	if (initialSyncError) {
+		return (
+			<div className="flex flex-col w-full justify-center items-center p-12">
+				<div className="flex flex-col justify-center items-center max-w-3xl">
+					<h1 className="text-2xl font-medium mb-4">Dexie local sync</h1>
+					<div className="text-red-500 mb-4">
+						Failed to sync with server: {initialSyncError.message}
+					</div>
+					<Button onClick={() => window.location.reload()}>
+						Retry
+					</Button>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="flex flex-col w-full justify-center items-center p-12">
 			<div className="flex flex-col justify-center items-start max-w-3xl">
@@ -97,6 +141,11 @@ export default function Dashboard() {
 					<h1 className="text-2xl font-medium">
 						Dexie local sync
 					</h1>
+					{initialSyncResult && (
+						<div className="text-sm text-green-600">
+							Synced: {initialSyncResult.added} new, {initialSyncResult.updated} updated
+						</div>
+					)}
 				</div>
 				<form className="flex gap-2 py-4" onSubmit={handleAdd}>
 					<Input
@@ -120,7 +169,14 @@ export default function Dashboard() {
 							key={item.id || index}
 							className="flex items-center justify-between rounded-md border p-2"
 						>
-							<p>{item.name}</p>
+							<div className="flex flex-col">
+								<p>{item.name}</p>
+								{item.serverId && (
+									<span className="text-xs text-gray-500">
+										Server ID: {item.serverId}
+									</span>
+								)}
+							</div>
 							<div className="flex gap-2 items-center">
 								<div className="flex items-center gap-2">
 									<span
