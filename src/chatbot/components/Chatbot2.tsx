@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Conversation, LocalConversation, LocalMessage, Message } from '../types/chat.type';
 import chatDB from '../local/chat-db';
-import { delay } from '@/lib/utils';
+import ConversationCard from './ConversationCard';
+import { generateAIResponse } from '../lib/generateAIResponse';
 
 export default function Chatbot() {
 	const [inputValue, setInputValue] = useState<string>('');
@@ -13,16 +14,6 @@ export default function Chatbot() {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	const aiResponses = useMemo(() => [
-		"I'm an AI assistant. How can I help you today?",
-		"That's an interesting question. Let me think about that...",
-		"Based on my knowledge, I'd suggest considering multiple perspectives.",
-		"I don't have enough information to answer that fully.",
-		"Could you clarify your question? I want to make sure I understand.",
-		"Thanks for asking! Here's what I know about that topic...",
-		"I'm designed to be helpful, harmless, and honest in my responses.",
-		"That's outside my current capabilities, but I can try to point you in the right direction."
-	], []);
 
 	// Optimized scroll - only when needed
 	const scrollToBottom = useCallback(() => {
@@ -131,9 +122,6 @@ export default function Chatbot() {
 		setActiveConversation(conversationId);
 	}, [activeConversation]);
 
-	const generateAIResponse = useCallback(() => {
-		return aiResponses[Math.floor(Math.random() * aiResponses.length)];
-	}, [aiResponses]);
 
 	const updateConversationInDB = useCallback(async (
 		conversationId: string,
@@ -182,8 +170,7 @@ export default function Chatbot() {
 
 		// Generate AI response (instant for demo)
 
-		await delay(2000)
-		const aiResponseText = generateAIResponse();
+		const aiResponseText = await generateAIResponse();
 		const aiMessage: LocalMessage = {
 			id: aiMessageId,
 			text: aiResponseText,
@@ -228,8 +215,7 @@ export default function Chatbot() {
 		setTimeout(() => inputRef.current?.focus(), 0);
 	}, [inputValue, isProcessing, activeConversation, generateAIResponse, updateConversationInDB]);
 
-	const deleteConversation = useCallback(async (conversationId: string, e: React.MouseEvent) => {
-		e.stopPropagation();
+	const deleteConversation = useCallback(async (conversationId: string) => {
 
 		try {
 			// Delete from local IndexedDB
@@ -258,22 +244,6 @@ export default function Chatbot() {
 		}
 	}, [conversations, activeConversation, createNewConversation]);
 
-	// Keyboard shortcuts
-	useEffect(() => {
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.ctrlKey || e.metaKey) {
-				switch (e.key) {
-					case 'n':
-						e.preventDefault();
-						createNewConversation();
-						break;
-				}
-			}
-		};
-
-		window.addEventListener('keydown', handleKeyDown);
-		return () => window.removeEventListener('keydown', handleKeyDown);
-	}, [createNewConversation]);
 
 	const activeConversationTitle = useMemo(() => {
 		return conversations.find(c => c.id === activeConversation)?.title || 'New Chat';
@@ -291,34 +261,17 @@ export default function Chatbot() {
 					>
 						+ New Chat
 					</button>
-					<div className="text-xs text-gray-500 mt-2 text-center">
-						💾 All data stored locally
-					</div>
 				</div>
 
 				<div className="flex-1 overflow-y-auto">
 					{conversations.map((conversation) => (
-						<div
+						<ConversationCard
 							key={conversation.id}
-							className={`flex justify-between items-center p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors duration-150 ${activeConversation === conversation.id
-								? 'bg-blue-50 border-r-2 border-r-blue-600 font-medium'
-								: ''
-								}`}
-							onClick={() => switchConversation(conversation.id)}
-						>
-							<div className="truncate flex-1">
-								<span className="text-sm block truncate">
-									{conversation.title}
-								</span>
-							</div>
-							<button
-								className="text-gray-400 hover:text-red-500 px-2 py-1 rounded transition-colors duration-150 ml-2"
-								onClick={(e) => deleteConversation(conversation.id, e)}
-								title="Delete conversation"
-							>
-								×
-							</button>
-						</div>
+							conversation={conversation}
+							activeConversation={activeConversation}
+							switchConversation={switchConversation}
+							deleteConversation={deleteConversation}
+						/>
 					))}
 
 					{conversations.length === 0 && (
