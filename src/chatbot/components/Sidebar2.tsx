@@ -3,6 +3,7 @@ import { LocalConversation, SyncResponse, SyncResult } from "../types/chat.type"
 import chatDB from "../local/chat-db";
 import ConversationCard from "./ConversationCard";
 import { syncConversations } from "../lib/syncConversations";
+import { syncDeletions } from "../lib/syncDeletions";
 
 interface Props {
 	conversations: LocalConversation[];
@@ -35,6 +36,24 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 		const interval = setInterval(autoSync, 5000); // Batch sync every 5 seconds
 		return () => clearInterval(interval);
 	}, [syncConversations]);
+
+
+	useEffect(() => {
+		const autoSync = async () => {
+			const unsyncedDeletions = await chatDB.deleteQueue
+				.where("syncStatus")
+				.equals("pending")
+				.toArray();
+			if (unsyncedDeletions.length > 0) {
+				const unsyncedDeletionIds = unsyncedDeletions.map((del) => del.id)
+				console.log("Auto-syncing batch of pending items:", unsyncedDeletionIds);
+				syncDeletions({ unsyncedDeletionIds })
+			}
+		};
+
+		const interval = setInterval(autoSync, 3000); // Batch sync every 5 seconds
+		return () => clearInterval(interval);
+	}, [syncDeletions])
 
 	const loadConversations = useCallback(async () => {
 		try {
@@ -108,6 +127,10 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 
 		try {
 			// Delete from local IndexedDB
+			await chatDB.deleteQueue.add({
+				id: conversationId,
+				syncStatus: "pending"
+			})
 			await chatDB.conversations.delete(conversationId);
 
 			// Update local state

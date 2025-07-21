@@ -45,3 +45,43 @@ export async function POST(request: NextRequest) {
 		);
 	}
 }
+
+export async function DELETE(request: NextRequest) {
+	try {
+		const items = await request.json();
+
+		console.log("delete syncing called", items)
+		const results = await Promise.all(
+			items.map(async (id: string) => {
+				try {
+					const deletedItem = await prisma.conversation.delete({ where: { id } })
+
+
+					return {
+						id: deletedItem.id,
+						status: 'success'
+					};
+				} catch (error) {
+					console.error('Error deleting conversation:', error);
+					return {
+						id,
+						status: 'error'
+					};
+				}
+			})
+		);
+		console.log("syncing success", results)
+
+		return NextResponse.json({
+			success: true,
+			results
+		});
+	} catch (error) {
+		console.error('Sync error:', error);
+		return NextResponse.json(
+			{ success: false, error: 'Failed to sync conversations' },
+			{ status: 500 }
+		);
+	}
+}
+
