@@ -1,7 +1,5 @@
-import Chatbot from "@/chatbot/components/Chatbot5";
+import ChatInterface from "@/chatbot/components/ChatInterface4";
 
 export default function Page() {
-  return (
-    <div className="p-10 h-screen"><Chatbot /></div>
-  )
+  return (<ChatInterface activeConversation={null} />)
 }
