@@ -36,8 +36,8 @@ export default function RootLayout({
       <ReactQueryProvider>
         <html lang="en">
           <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+            {/*
             <header className="flex top-0 z-20 w-full justify-end items-center p-4 gap-4 h-16">
-              {/*
               <SignedOut>
                 <SignInButton />
                 <SignUpButton>
@@ -49,8 +49,8 @@ export default function RootLayout({
               <SignedIn>
                 <UserButton />
               </SignedIn>
-           */}
             </header>
+           */}
             {children}
           </body>
         </html>

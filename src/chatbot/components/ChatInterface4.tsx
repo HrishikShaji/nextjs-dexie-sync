@@ -244,14 +244,18 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 	if (!activeConversation) {
 		return (
-			<div className="text-center mt-12 text-gray-500">
-				<div className="bg-white rounded-lg p-8 shadow-sm max-w-md mx-auto">
-					<h3 className="text-xl font-semibold mb-2 text-gray-700">
-						Start a new conversation
-					</h3>
-					<p className="text-gray-600">
-						Ask me anything and I'll respond instantly!
-					</p>
+			<div className="flex-1 flex flex-col">
+				<div className="flex-1 p-6 overflow-y-auto flex items-center justify-center bg-gray-50 scroll-smooth">
+					<div className="text-center mt-12 text-gray-500">
+						<div className="bg-white rounded-lg p-8 shadow-sm max-w-md mx-auto">
+							<h3 className="text-xl font-semibold mb-2 text-gray-700">
+								Start a new conversation
+							</h3>
+							<p className="text-gray-600">
+								Ask me anything and I'll respond instantly!
+							</p>
+						</div>
+					</div>
 				</div>
 				<div className="p-4 border-t border-gray-200 bg-white">
 					<form onSubmit={handleFirstMessage} className="flex gap-3">
@@ -274,14 +278,13 @@ export default function ChatInterface({ activeConversation }: Props) {
 					</form>
 				</div>
 			</div>
-
 		)
 	}
 
 	return (
 		<div className="flex-1 flex flex-col">
 			{/* Header */}
-			<div className="bg-white border-b border-gray-200 px-6 py-3">
+			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center">
 				<h2 className="text-lg font-semibold text-gray-800 truncate">
 					{activeConversationTitle}
 				</h2>
@@ -289,36 +292,24 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 			{/* Messages */}
 			<div className="flex-1 p-6 overflow-y-auto bg-gray-50 scroll-smooth">
-				{localMessages.length === 0 ? (
-					<div className="text-center mt-12 text-gray-500">
-						<div className="bg-white rounded-lg p-8 shadow-sm max-w-md mx-auto">
-							<h3 className="text-xl font-semibold mb-2 text-gray-700">
-								Start a new conversation
-							</h3>
-							<p className="text-gray-600">
-								Ask me anything and I'll respond instantly!
-							</p>
-						</div>
-					</div>
-				) : (
-					localMessages.map((message) => (
+				{localMessages.map((message) => (
+					<div
+						key={message.id}
+						className={`flex mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'
+							}`}
+					>
 						<div
-							key={message.id}
-							className={`flex mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'
+							className={`max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${message.sender === 'user'
+								? 'bg-blue-600 text-white rounded-br-sm'
+								: 'bg-white text-gray-800 rounded-bl-sm border border-gray-200'
 								}`}
 						>
-							<div
-								className={`max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${message.sender === 'user'
-									? 'bg-blue-600 text-white rounded-br-sm'
-									: 'bg-white text-gray-800 rounded-bl-sm border border-gray-200'
-									}`}
-							>
-								<p className="whitespace-pre-wrap">{message.text}</p>
-							</div>
-							<div className={`size-2 rounded-full ${getSyncColor(message.syncStatus)}`} />
+							<p className="whitespace-pre-wrap">{message.text}</p>
 						</div>
-					))
-				)}
+						<div className={`size-2 rounded-full ${getSyncColor(message.syncStatus)}`} />
+					</div>
+				))
+				}
 				<div ref={messagesEndRef} />
 			</div>
 

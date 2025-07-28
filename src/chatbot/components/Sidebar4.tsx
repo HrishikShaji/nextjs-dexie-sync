@@ -75,15 +75,17 @@ export default function Sidebar() {
 			setConversations(mappedConversations);
 
 			// Set active conversation if none exists
+			{/*
 			if (!activeConversation && mappedConversations.length > 0) {
 				setActiveConversation(mappedConversations[0].id);
 			} else if (mappedConversations.length === 0) {
 				createNewConversation();
 			}
+		*/}
 		} catch (error) {
 			console.error('Failed to load conversations from local storage:', error);
 			// Create a new conversation as fallback
-			createNewConversation();
+			//createNewConversation();
 		}
 	}, [activeConversation]);
 
@@ -145,9 +147,12 @@ export default function Sidebar() {
 			if (activeConversation === conversationId) {
 				if (updatedConversations.length > 0) {
 					setActiveConversation(updatedConversations[0].id);
-				} else {
+				}
+				{/*else {
 					await createNewConversation();
 				}
+*/}
+
 			}
 		} catch (error) {
 			console.error('Failed to delete local conversation:', error);
@@ -165,7 +170,7 @@ export default function Sidebar() {
 
 	return (
 		<div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-			<div className="p-2 border-b border-gray-100">
+			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center">
 				<Link
 					className="w-full p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-150 shadow-sm"
 					href="/chat"
