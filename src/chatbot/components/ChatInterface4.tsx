@@ -18,10 +18,54 @@ export default function ChatInterface({ activeConversation }: Props) {
 	const [inputValue, setInputValue] = useState<string>('');
 	const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
 	const [isProcessing, setIsProcessing] = useState(false);
+	const [isInitialLoaded, setIsInitialLoaded] = useState(false)
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const router = useRouter()
 	const { setActiveConversation, setConversations } = useConversationContext()
+
+	async function forFirstMessage(userMessage: string) {
+		if (!activeConversation) return;
+		console.log("@@RAN FIRST MESSAGE")
+		setIsProcessing(true);
+
+		// Generate IDs upfront
+		const aiMessageId = crypto.randomUUID();
+
+
+		// Generate AI response (instant for demo)
+
+		const aiResponseText = await generateAIResponse();
+		const aiMessage: LocalMessage = {
+			id: aiMessageId,
+			text: aiResponseText,
+			sender: 'ai',
+			syncStatus: "pending", // Mark as local-only
+		};
+
+		// Add AI message to UI immediately for ultra-fast feel
+		setLocalMessages(prev => [...prev, aiMessage]);
+
+		// Update local state
+		// Update database in background
+		await updateConversationInDB(
+			activeConversation,
+			[aiMessage],
+		);
+
+		setIsProcessing(false);
+
+		// Refocus input for continuous typing
+		setTimeout(() => inputRef.current?.focus(), 0);
+
+	}
+
+	useEffect(() => {
+		if (localMessages.length === 1 && !isInitialLoaded) {
+			forFirstMessage(localMessages[0].text)
+			setIsInitialLoaded(true)
+		}
+	}, [localMessages, activeConversation, isInitialLoaded])
 
 	useEffect(() => {
 		if (!activeConversation) return
@@ -40,7 +84,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 			}
 		};
 
-		const interval = setInterval(autoSync, 5000); // Batch sync every 5 seconds
+		const interval = setInterval(autoSync, 2000); // Batch sync every 5 seconds
 		return () => clearInterval(interval);
 	}, [activeConversation]);
 
@@ -159,7 +203,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 	async function handleFirstMessage(e: FormEvent) {
 		e.preventDefault()
 		const id = crypto.randomUUID();
-		const title = `New Cobobo ${Date.now()}`;
+		const title = inputValue;
 
 		const aiMessage: LocalMessage = {
 			id: crypto.randomUUID(),
