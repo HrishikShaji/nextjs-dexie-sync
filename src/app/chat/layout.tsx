@@ -1,4 +1,4 @@
-import Sidebar from "@/chatbot/components/Sidebar4"
+import Sidebar from "@/chatbot/components/Sidebar"
 import { ConversationProvider } from "@/chatbot/contexts/ConversationContext"
 
 export default function ChatLayout({

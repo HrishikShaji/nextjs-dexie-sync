@@ -1,25 +1,64 @@
-import { Dispatch, SetStateAction, useCallback, useEffect } from "react";
-import { LocalConversation } from "../types/chat.type"
+"use client"
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
+import { LocalConversation, SyncResponse, SyncResult } from "../types/chat.type"
 import chatDB from "../local/chat-db";
 import ConversationCard from "./ConversationCard";
+import { syncConversations } from "../lib/syncConversations";
+import { syncDeletions } from "../lib/syncDeletions";
+import { useConversationContext } from "../contexts/ConversationContext";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-interface Props {
-	conversations: LocalConversation[];
-	setConversations: Dispatch<SetStateAction<LocalConversation[]>>;
-	activeConversation: string | null;
-	setActiveConversation: Dispatch<SetStateAction<string | null>>;
-}
 
-export default function Sidebar({ conversations, setConversations, setActiveConversation, activeConversation }: Props) {
+export default function Sidebar() {
+	const { setConversations, setActiveConversation, activeConversation, conversations } = useConversationContext()
+	const router = useRouter()
 	useEffect(() => {
 		loadConversations();
 	}, []);
 
+	useEffect(() => {
+
+		const autoSync = async () => {
+			const unsyncedConversations = await chatDB.conversations
+				.where("syncStatus")
+				.equals("pending")
+				.toArray();
+			if (unsyncedConversations.length > 0) {
+				console.log("Auto-syncing batch of pending items:", unsyncedConversations);
+				syncConversations({
+					unsyncedConversations,
+					onSuccess: (conversations) => setConversations(conversations)
+				});
+			}
+		};
+
+		const interval = setInterval(autoSync, 5000); // Batch sync every 5 seconds
+		return () => clearInterval(interval);
+	}, [syncConversations]);
+
+
+	useEffect(() => {
+		const autoSync = async () => {
+			const unsyncedDeletions = await chatDB.deleteQueue
+				.where("syncStatus")
+				.equals("pending")
+				.toArray();
+			if (unsyncedDeletions.length > 0) {
+				const unsyncedDeletionIds = unsyncedDeletions.map((del) => del.id)
+				console.log("Auto-syncing batch of pending items:", unsyncedDeletionIds);
+				syncDeletions({ unsyncedDeletionIds })
+			}
+		};
+
+		const interval = setInterval(autoSync, 3000); // Batch sync every 5 seconds
+		return () => clearInterval(interval);
+	}, [syncDeletions])
 
 	const loadConversations = useCallback(async () => {
 		try {
 			// Load all conversations from IndexedDB - fully local
-			const localConversations = await chatDB.conversations.orderBy('id').reverse().toArray();
+			const localConversations = await chatDB.conversations.orderBy('localCreatedAt').reverse().toArray();
 			const mappedConversations: LocalConversation[] = localConversations.map(conv => ({
 				id: conv.id,
 				title: conv.title,
@@ -29,21 +68,24 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 					sender: msg.sender,
 					syncStatus: msg.syncStatus
 				})),
-				syncStatus: conv.syncStatus
+				syncStatus: conv.syncStatus,
+				localCreatedAt: conv.localCreatedAt
 			}));
 
 			setConversations(mappedConversations);
 
 			// Set active conversation if none exists
+			{/*
 			if (!activeConversation && mappedConversations.length > 0) {
 				setActiveConversation(mappedConversations[0].id);
 			} else if (mappedConversations.length === 0) {
 				createNewConversation();
 			}
+		*/}
 		} catch (error) {
 			console.error('Failed to load conversations from local storage:', error);
 			// Create a new conversation as fallback
-			createNewConversation();
+			//createNewConversation();
 		}
 	}, [activeConversation]);
 
@@ -59,12 +101,13 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 			title,
 			syncStatus: "pending", // Mark as local-only
 			messages: [],
+			localCreatedAt: new Date()
 		};
 
 		try {
 			// Save to local IndexedDB first
-			await chatDB.conversations.add(localConversation);
-
+			const newConversations = await chatDB.conversations.add(localConversation);
+			console.log("@@NEW CONVERSATIONS", newConversations)
 			// Update local state
 			setConversations(prev => [localConversation, ...prev]);
 			setActiveConversation(id);
@@ -75,11 +118,15 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 			setConversations(prev => [localConversation, ...prev]);
 			setActiveConversation(id);
 		}
+
 	}, []);
 
 	const switchConversation = useCallback((conversationId: string) => {
+
 		if (conversationId === activeConversation) return;
 		setActiveConversation(conversationId);
+		router.push(`/chat/${conversationId}`)
+
 	}, [activeConversation]);
 
 
@@ -87,6 +134,10 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 
 		try {
 			// Delete from local IndexedDB
+			await chatDB.deleteQueue.add({
+				id: conversationId,
+				syncStatus: "pending"
+			})
 			await chatDB.conversations.delete(conversationId);
 
 			// Update local state
@@ -96,9 +147,12 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 			if (activeConversation === conversationId) {
 				if (updatedConversations.length > 0) {
 					setActiveConversation(updatedConversations[0].id);
-				} else {
+				}
+				{/*else {
 					await createNewConversation();
 				}
+*/}
+
 			}
 		} catch (error) {
 			console.error('Failed to delete local conversation:', error);
@@ -116,14 +170,13 @@ export default function Sidebar({ conversations, setConversations, setActiveConv
 
 	return (
 		<div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-			<div className="p-2 border-b border-gray-100">
-				<button
-					onClick={createNewConversation}
+			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center">
+				<Link
 					className="w-full p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors duration-150 shadow-sm"
-					title="New Chat (Ctrl+N)"
+					href="/chat"
 				>
 					+ New Chat
-				</button>
+				</Link>
 			</div>
 
 			<div className="flex-1 overflow-y-auto">
