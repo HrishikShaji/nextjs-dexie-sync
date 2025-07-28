@@ -44,5 +44,6 @@ export type LocalConversation = {
 	title: string;
 	messages: LocalMessage[];
 	syncStatus: "pending" | "synced" | "error";
+	localCreatedAt?: Date;
 };
 

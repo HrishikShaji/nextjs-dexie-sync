@@ -1,8 +1,8 @@
 "use client"
 import React, { useEffect, useState } from 'react';
 import { LocalConversation } from '../types/chat.type';
-import Sidebar from './Sidebar2';
-import ChatInterface from './ChatInterface2';
+import Sidebar from './Sidebar3';
+import ChatInterface from './ChatInterface3';
 
 export default function Chatbot() {
 	const [conversations, setConversations] = useState<LocalConversation[]>([]);

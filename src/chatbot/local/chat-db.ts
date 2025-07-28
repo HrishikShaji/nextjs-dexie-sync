@@ -10,7 +10,7 @@ interface MyDatabase extends Dexie {
 const chatDB = new Dexie("HrishixDB") as MyDatabase;
 
 chatDB.version(3).stores({
-	conversations: "id,title,messages,syncStatus",
+	conversations: "id,title,messages,syncStatus,localCreatedAt",
 	deleteQueue: "id,syncStatus"
 });
 

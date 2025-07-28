@@ -47,7 +47,7 @@ export async function syncConversations({ unsyncedConversations, onSuccess }: Pr
 		);
 
 		// Trigger a refresh of all items
-		const allConversations = await chatDB.conversations.toArray();
+		const allConversations = await chatDB.conversations.orderBy("localCreatedAt").reverse().toArray();
 		onSuccess(allConversations)
 	} else {
 		throw new Error("Failed to sync items");
