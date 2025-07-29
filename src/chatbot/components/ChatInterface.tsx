@@ -1,89 +1,31 @@
 "use client"
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import chatDB from "../local/chat-db";
 import { LocalConversation, LocalMessage, MessageSyncResponse, SyncResponse, SyncResult } from "../types/chat.type";
 import { generateAIResponse } from "../lib/generateAIResponse";
 import { getSyncColor } from "@/lib/utils";
-import { syncMessages } from "../lib/syncMessages";
-import ChatIntro from "./ChatIntro";
 import ChatInput from "./ChatInput";
+import useSyncMessages from "../hooks/useSyncMessages";
+import { addMessagesToLocalDB } from "../lib/addMessagesToLocalDB";
+import useLoadMessages from "../hooks/useLoadMessages";
 
 interface Props {
-	activeConversation: string | null;
+	activeConversation: string;
 }
 
 
 export default function ChatInterface({ activeConversation }: Props) {
 	const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
 	const [isProcessing, setIsProcessing] = useState(false);
-	const [isInitialLoaded, setIsInitialLoaded] = useState(false)
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	async function forFirstMessage(userMessage: string) {
-		if (!activeConversation) return;
-		console.log("@@RAN FIRST MESSAGE")
-		setIsProcessing(true);
-
-		// Generate IDs upfront
-		const aiMessageId = crypto.randomUUID();
-
-
-		// Generate AI response (instant for demo)
-
-		const aiResponseText = await generateAIResponse();
-		const aiMessage: LocalMessage = {
-			id: aiMessageId,
-			text: aiResponseText,
-			sender: 'ai',
-			syncStatus: "pending", // Mark as local-only
-		};
-
-		// Add AI message to UI immediately for ultra-fast feel
-		setLocalMessages(prev => [...prev, aiMessage]);
-
-		// Update local state
-		// Update database in background
-		await updateConversationInDB(
-			activeConversation,
-			[aiMessage],
-		);
-
-		setIsProcessing(false);
-
-		// Refocus input for continuous typing
-		setTimeout(() => inputRef.current?.focus(), 0);
-
-	}
-
-	useEffect(() => {
-		if (localMessages.length === 1 && !isInitialLoaded) {
-			forFirstMessage(localMessages[0].text)
-			setIsInitialLoaded(true)
-		}
-	}, [localMessages, activeConversation, isInitialLoaded])
-
-	useEffect(() => {
-		if (!activeConversation) return
-
-		const autoSync = async () => {
-			const conversation = await chatDB.conversations.get(activeConversation)
-			if (!conversation) return
-			const unsyncedMessages = conversation.messages.filter((msg) => msg.syncStatus === "pending");
-			if (unsyncedMessages.length > 0 && activeConversation) {
-				console.log("Auto-syncing batch of pending messages:", unsyncedMessages);
-				syncMessages({
-					unsyncedMessages,
-					activeConversation,
-					onSuccess: (syncedMessages) => setLocalMessages(syncedMessages)
-				})
-			}
-		};
-
-		const interval = setInterval(autoSync, 2000); // Batch sync every 5 seconds
-		return () => clearInterval(interval);
-	}, [activeConversation]);
+	const { isLoading } = useLoadMessages({
+		activeConversation,
+		inititalUserInput: localMessages.length === 1 ? localMessages[0].text : null,
+		onMessages: (messages) => setLocalMessages(messages)
+	})
+	useSyncMessages({ onSuccess: (syncedMessages) => setLocalMessages(syncedMessages) })
 
 
 	const scrollToBottom = useCallback(() => {
@@ -94,48 +36,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 		scrollToBottom();
 	}, [localMessages.length, scrollToBottom]);
 
-	useEffect(() => {
-		if (activeConversation) {
-			loadMessages(activeConversation);
-		}
-	}, [activeConversation]);
 
-
-	const loadMessages = useCallback(async (conversationId: string) => {
-		console.log("@@LOADING MESSAGES WITH:", conversationId)
-		try {
-			const conversation = await chatDB.conversations.get(conversationId);
-			if (conversation?.messages) {
-				setLocalMessages([...conversation.messages]);
-			} else {
-				setLocalMessages([]);
-			}
-		} catch (error) {
-			console.error('Failed to load messages:', error);
-			setLocalMessages([]);
-		}
-	}, []);
-
-	const updateConversationInDB = useCallback(async (
-		conversationId: string,
-		newMessages: LocalMessage[],
-		newTitle?: string
-	) => {
-		try {
-
-			// Update locally in IndexedDB
-			await chatDB.conversations
-				.where('id')
-				.equals(conversationId)
-				.modify(conversation => {
-					conversation.messages = [...conversation.messages, ...newMessages];
-					if (newTitle) conversation.title = newTitle;
-				});
-		} catch (error) {
-			console.error('Failed to update local conversation:', error);
-			// Could implement retry logic or queue for later
-		}
-	}, []);
 
 	const handleSendMessage = useCallback(async (inputValue: string) => {
 		const trimmedInput = inputValue.trim();
@@ -180,7 +81,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 		// Update local state
 		// Update database in background
-		await updateConversationInDB(
+		await addMessagesToLocalDB(
 			activeConversation,
 			[userMessage, aiMessage],
 			title
@@ -191,12 +92,9 @@ export default function ChatInterface({ activeConversation }: Props) {
 		// Refocus input for continuous typing
 		setTimeout(() => inputRef.current?.focus(), 0);
 
-	}, [isProcessing, activeConversation, generateAIResponse, updateConversationInDB]);
+	}, [isProcessing, activeConversation, generateAIResponse, addMessagesToLocalDB]);
 
 	const activeConversationTitle = localMessages[0] ? localMessages[0].text : "No Title"
-
-
-	if (!activeConversation) return <ChatIntro />
 
 	return (
 		<div className="flex-1 flex flex-col">
@@ -233,7 +131,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 			{/* Message Input */}
 			<ChatInput
 				onSubmit={handleSendMessage}
-				isProcessing={isProcessing}
+				isProcessing={isProcessing || isLoading}
 			/>
 
 		</div>

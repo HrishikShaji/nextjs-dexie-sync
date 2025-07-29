@@ -1,5 +1,5 @@
-import ChatInterface from "@/chatbot/components/ChatInterface";
+import ChatIntro from "@/chatbot/components/ChatIntro";
 
 export default function Page() {
-  return (<ChatInterface activeConversation={null} />)
+  return (<ChatIntro />)
 }

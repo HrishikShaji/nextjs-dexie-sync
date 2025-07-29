@@ -1,3 +1,5 @@
+"use client"
+
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { useConversationContext } from "../contexts/ConversationContext";
