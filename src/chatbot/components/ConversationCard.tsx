@@ -1,14 +1,64 @@
 import { getSyncColor } from "@/lib/utils";
 import { Conversation, LocalConversation } from "../types/chat.type";
+import { useCallback } from "react";
+import { useConversationContext } from "../contexts/ConversationContext";
+import { useRouter } from "next/navigation";
+import chatDB from "../local/chat-db";
 
 interface Props {
-	activeConversation: string | null;
 	conversation: LocalConversation;
-	switchConversation: (conversationId: string) => void;
-	deleteConversation: (converationId: string) => void;
 }
 
-export default function ConversationCard({ activeConversation, conversation, switchConversation, deleteConversation }: Props) {
+export default function ConversationCard({ conversation }: Props) {
+
+	const { activeConversation, setConversations, setActiveConversation, conversations } = useConversationContext()
+
+	const router = useRouter()
+
+	const switchConversation = useCallback((conversationId: string) => {
+
+		if (conversationId === activeConversation) {
+			console.log("@@SAME CONVERATION ACTIVE")
+			return;
+		}
+		console.log("@@SWITCHING CONVERSATION")
+		setActiveConversation(conversationId);
+		router.push(`/chat/${conversationId}`)
+
+	}, [activeConversation]);
+
+
+	const deleteConversation = useCallback(async (conversationId: string) => {
+
+		try {
+			console.log("@@DELETING CONVERSATION", conversationId)
+			await chatDB.deleteQueue.add({
+				id: conversationId,
+				syncStatus: "pending"
+			})
+			await chatDB.conversations.delete(conversationId);
+
+			const updatedConversations = conversations.filter(c => c.id !== conversationId);
+			setConversations(updatedConversations);
+
+			if (activeConversation === conversationId) {
+				if (updatedConversations.length > 0) {
+					setActiveConversation(updatedConversations[0].id);
+				}
+
+			}
+		} catch (error) {
+			console.error('@@FAILED TO DELETE LOCAL CONVERSATION:', error);
+			const updatedConversations = conversations.filter(c => c.id !== conversationId);
+			setConversations(updatedConversations);
+
+			if (activeConversation === conversationId && updatedConversations.length > 0) {
+				setActiveConversation(updatedConversations[0].id);
+			}
+		}
+	}, [conversations, activeConversation]);
+
+
 	return (
 		<div
 			key={conversation.id}
