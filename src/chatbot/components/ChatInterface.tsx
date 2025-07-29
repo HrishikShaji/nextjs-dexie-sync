@@ -7,6 +7,7 @@ import { generateAIResponse } from "../lib/generateAIResponse";
 import { getSyncColor } from "@/lib/utils";
 import { syncMessages } from "../lib/syncMessages";
 import ChatIntro from "./ChatIntro";
+import ChatInput from "./ChatInput";
 
 interface Props {
 	activeConversation: string | null;
@@ -14,7 +15,6 @@ interface Props {
 
 
 export default function ChatInterface({ activeConversation }: Props) {
-	const [inputValue, setInputValue] = useState<string>('');
 	const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
 	const [isProcessing, setIsProcessing] = useState(false);
 	const [isInitialLoaded, setIsInitialLoaded] = useState(false)
@@ -137,8 +137,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 		}
 	}, []);
 
-	const handleSendMessage = useCallback(async (e: React.FormEvent) => {
-		e.preventDefault();
+	const handleSendMessage = useCallback(async (inputValue: string) => {
 		const trimmedInput = inputValue.trim();
 		if (!trimmedInput || isProcessing || !activeConversation) return;
 
@@ -165,7 +164,6 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 		// Immediately update UI with user message
 		setLocalMessages(prev => [...prev, userMessage]);
-		setInputValue('');
 
 		// Generate AI response (instant for demo)
 
@@ -193,7 +191,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 		// Refocus input for continuous typing
 		setTimeout(() => inputRef.current?.focus(), 0);
 
-	}, [inputValue, isProcessing, activeConversation, generateAIResponse, updateConversationInDB]);
+	}, [isProcessing, activeConversation, generateAIResponse, updateConversationInDB]);
 
 	const activeConversationTitle = localMessages[0] ? localMessages[0].text : "No Title"
 
@@ -233,27 +231,11 @@ export default function ChatInterface({ activeConversation }: Props) {
 			</div>
 
 			{/* Message Input */}
-			<div className="p-4 border-t border-gray-200 bg-white">
-				<form onSubmit={handleSendMessage} className="flex gap-3">
-					<input
-						ref={inputRef}
-						type="text"
-						value={inputValue}
-						onChange={(e) => setInputValue(e.target.value)}
-						placeholder="Type your message..."
-						disabled={isProcessing}
-						className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-						autoFocus
-					/>
-					<button
-						type="submit"
-						disabled={!inputValue.trim() || isProcessing}
-						className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150 font-medium shadow-sm"
-					>
-						{isProcessing ? '...' : 'Send'}
-					</button>
-				</form>
-			</div>
+			<ChatInput
+				onSubmit={handleSendMessage}
+				isProcessing={isProcessing}
+			/>
+
 		</div>
 
 	)
