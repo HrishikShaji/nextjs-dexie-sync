@@ -1,5 +1,5 @@
 import chatDB from "../local/chat-db";
-import { LocalMessage, MessageSyncResponse } from "../types/chat.type";
+import { LocalMessage, MessageSyncResponse, SyncResult } from "../types/chat.type";
 
 interface Props {
 	unsyncedMessages: LocalMessage[];
@@ -32,10 +32,13 @@ export async function syncMessages({ unsyncedMessages, activeConversation, onSuc
 
 		await chatDB.conversations.where("id").equals(activeConversation).modify((conversation) => {
 			conversation.messages = conversation.messages.map((msg) => {
-				if (syncedIds.includes(msg.id)) {
+				const resultItem = results.find((result) => result.id === msg.id)
+				if (!resultItem) return msg
+
+				if (resultItem) {
 					return {
 						...msg,
-						syncStatus: "synced"
+						syncStatus: resultItem.status as any
 					}
 				}
 

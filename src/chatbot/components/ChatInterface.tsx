@@ -3,11 +3,11 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { LocalConversation, LocalMessage, MessageSyncResponse, SyncResponse, SyncResult } from "../types/chat.type";
 import { generateAIResponse } from "../lib/generateAIResponse";
-import { getSyncColor } from "@/lib/utils";
 import ChatInput from "./ChatInput";
 import useSyncMessages from "../hooks/useSyncMessages";
 import { addMessagesToLocalDB } from "../lib/addMessagesToLocalDB";
 import useLoadMessages from "../hooks/useLoadMessages";
+import ChatMessages from "./ChatMessages";
 
 interface Props {
 	activeConversation: string;
@@ -17,24 +17,17 @@ interface Props {
 export default function ChatInterface({ activeConversation }: Props) {
 	const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
 	const [isProcessing, setIsProcessing] = useState(false);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+
+
 
 	const { isLoading } = useLoadMessages({
 		activeConversation,
 		inititalUserInput: localMessages.length === 1 ? localMessages[0].text : null,
 		onMessages: (messages) => setLocalMessages(messages)
 	})
+
 	useSyncMessages({ onSuccess: (syncedMessages) => setLocalMessages(syncedMessages) })
-
-
-	const scrollToBottom = useCallback(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-	}, []);
-
-	useEffect(() => {
-		scrollToBottom();
-	}, [localMessages.length, scrollToBottom]);
 
 
 
@@ -105,30 +98,9 @@ export default function ChatInterface({ activeConversation }: Props) {
 				</h2>
 			</div>
 
-			{/* Messages */}
-			<div className="flex-1 p-6 overflow-y-auto bg-gray-50 scroll-smooth">
-				{localMessages.map((message) => (
-					<div
-						key={message.id}
-						className={`flex mb-4 ${message.sender === 'user' ? 'justify-end' : 'justify-start'
-							}`}
-					>
-						<div
-							className={`max-w-[70%] px-4 py-2 rounded-lg shadow-sm ${message.sender === 'user'
-								? 'bg-blue-600 text-white rounded-br-sm'
-								: 'bg-white text-gray-800 rounded-bl-sm border border-gray-200'
-								}`}
-						>
-							<p className="whitespace-pre-wrap">{message.text}</p>
-						</div>
-						<div className={`size-2 rounded-full ${getSyncColor(message.syncStatus)}`} />
-					</div>
-				))
-				}
-				<div ref={messagesEndRef} />
-			</div>
-
-			{/* Message Input */}
+			<ChatMessages
+				messages={localMessages}
+			/>
 			<ChatInput
 				onSubmit={handleSendMessage}
 				isProcessing={isProcessing || isLoading}

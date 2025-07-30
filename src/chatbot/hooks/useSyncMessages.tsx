@@ -27,7 +27,7 @@ export default function useSyncMessages({ onSuccess }: Props) {
 			}
 		};
 
-		const interval = setInterval(autoSync, 2000);
+		const interval = setInterval(autoSync, 1000);
 		return () => clearInterval(interval);
 	}, [activeConversation]);
 

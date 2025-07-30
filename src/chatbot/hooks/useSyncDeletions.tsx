@@ -17,7 +17,7 @@ export default function useSyncDeletions() {
 			}
 		};
 
-		const interval = setInterval(autoSync, 3000);
+		const interval = setInterval(autoSync, 5000);
 		return () => clearInterval(interval);
 	}, [syncDeletions])
 

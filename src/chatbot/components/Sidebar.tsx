@@ -5,10 +5,35 @@ import Link from "next/link";
 import useSyncConversations from "../hooks/useSyncConversations";
 import useSyncDeletions from "../hooks/useSyncDeletions";
 import useLoadConversations from "../hooks/useLoadConversations";
+import { useEffect } from "react";
+import chatDB from "../local/chat-db";
+import { LocalMessage } from "../types/chat.type";
 
 
 export default function Sidebar() {
 	const { conversations } = useConversationContext()
+
+	useEffect(() => {
+		async function loadData() {
+			const conversations = await chatDB.conversations.toArray()
+			console.log("@@INITIAL CONVERSATIONS", conversations)
+
+			let unsyncedMessages: LocalMessage[] = []
+
+			conversations.forEach((conversation) => {
+				conversation.messages.forEach((message) => {
+					if (message.syncStatus === "pending") {
+						unsyncedMessages.push(message)
+					}
+				})
+			})
+
+			console.log("@@UNSYNCED MESSAGES", unsyncedMessages)
+
+		}
+
+		loadData()
+	}, [])
 
 	useLoadConversations()
 

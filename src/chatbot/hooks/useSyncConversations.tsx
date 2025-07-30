@@ -22,7 +22,7 @@ export default function useSyncConversations() {
 			}
 		};
 
-		const interval = setInterval(autoSync, 2000);
+		const interval = setInterval(autoSync, 5000);
 		return () => clearInterval(interval);
 	}, [syncConversations]);
 }

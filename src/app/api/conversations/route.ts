@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 						status: 'success'
 					};
 				} catch (error) {
-					console.error('Error saving item:', error);
+					console.error(`Error saving item:${JSON.stringify(item)}`, error);
 					return {
 						id: item.id,
 						status: 'error'

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 					return {
 						conversationId: savedMessage.conversationId,
 						id: savedMessage.id,
-						status: 'success'
+						status: 'synced'
 					};
 				} catch (error) {
 					console.error('Error saving item:', error);
