@@ -1,17 +1,16 @@
 "use client"
 import ConversationCard from "./ConversationCard";
-import { useConversationContext } from "../contexts/ConversationContext";
 import Link from "next/link";
 import useSyncConversations from "../hooks/useSyncConversations";
 import useSyncDeletions from "../hooks/useSyncDeletions";
-import useLoadConversations from "../hooks/useLoadConversations";
 import { useEffect } from "react";
 import chatDB from "../local/chat-db";
 import { LocalMessage } from "../types/chat.type";
+import { useLiveQuery } from "dexie-react-hooks";
 
 
 export default function Sidebar() {
-	const { conversations } = useConversationContext()
+	const conversations = useLiveQuery(() => chatDB.conversations.orderBy('localCreatedAt').reverse().toArray()) || []
 
 	useEffect(() => {
 		async function loadData() {
@@ -35,11 +34,11 @@ export default function Sidebar() {
 		loadData()
 	}, [])
 
-	useLoadConversations()
 
 	useSyncConversations()
 
 	useSyncDeletions()
+
 
 
 	return (

@@ -4,10 +4,9 @@ import { LocalMessage, MessageSyncResponse, SyncResult } from "../types/chat.typ
 interface Props {
 	unsyncedMessages: LocalMessage[];
 	activeConversation: string;
-	onSuccess: (messages: LocalMessage[]) => void;
 }
 
-export async function syncMessages({ unsyncedMessages, activeConversation, onSuccess }: Props) {
+export async function syncMessages({ unsyncedMessages, activeConversation }: Props) {
 	//	console.log("@@UNSYNCED CONVERSATIONS", unsyncedMessages)
 
 
@@ -51,8 +50,6 @@ export async function syncMessages({ unsyncedMessages, activeConversation, onSuc
 
 		if (!currentConversation) return
 
-		const allMessages = currentConversation.messages
-		onSuccess(allMessages)
 
 	} else {
 		throw new Error("Failed to sync items");

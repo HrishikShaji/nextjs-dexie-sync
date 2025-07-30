@@ -3,10 +3,9 @@ import { LocalConversation, SyncResponse, SyncResult } from "../types/chat.type"
 
 interface Props {
 	unsyncedConversations: LocalConversation[];
-	onSuccess: (conversations: LocalConversation[]) => void;
 }
 
-export async function syncConversations({ unsyncedConversations, onSuccess }: Props) {
+export async function syncConversations({ unsyncedConversations }: Props) {
 	//	console.log("@@UNSYNCED CONVERSATIONS", unsyncedConversations)
 
 	const response = await fetch('/api/conversations', {
@@ -46,9 +45,6 @@ export async function syncConversations({ unsyncedConversations, onSuccess }: Pr
 			)
 		);
 
-		// Trigger a refresh of all items
-		const allConversations = await chatDB.conversations.orderBy("localCreatedAt").reverse().toArray();
-		onSuccess(allConversations)
 	} else {
 		throw new Error("Failed to sync items");
 	}

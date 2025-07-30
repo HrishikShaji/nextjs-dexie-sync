@@ -11,7 +11,7 @@ interface Props {
 
 export default function ConversationCard({ conversation }: Props) {
 
-	const { activeConversation, setConversations, setActiveConversation, conversations } = useConversationContext()
+	const { activeConversation, setActiveConversation } = useConversationContext()
 
 	const router = useRouter()
 
@@ -38,25 +38,12 @@ export default function ConversationCard({ conversation }: Props) {
 			})
 			await chatDB.conversations.delete(conversationId);
 
-			const updatedConversations = conversations.filter(c => c.id !== conversationId);
-			setConversations(updatedConversations);
 
-			if (activeConversation === conversationId) {
-				if (updatedConversations.length > 0) {
-					setActiveConversation(updatedConversations[0].id);
-				}
-
-			}
 		} catch (error) {
 			console.error('@@FAILED TO DELETE LOCAL CONVERSATION:', error);
-			const updatedConversations = conversations.filter(c => c.id !== conversationId);
-			setConversations(updatedConversations);
 
-			if (activeConversation === conversationId && updatedConversations.length > 0) {
-				setActiveConversation(updatedConversations[0].id);
-			}
 		}
-	}, [conversations, activeConversation]);
+	}, [activeConversation]);
 
 
 	return (

@@ -4,7 +4,6 @@ import { LocalConversation } from "../types/chat.type";
 import { useConversationContext } from "../contexts/ConversationContext";
 
 export default function useLoadConversations() {
-	const { setConversations } = useConversationContext()
 	useEffect(() => {
 		loadConversations();
 	}, []);
@@ -12,6 +11,7 @@ export default function useLoadConversations() {
 	const loadConversations = async () => {
 		try {
 			const localConversations = await chatDB.conversations.orderBy('localCreatedAt').reverse().toArray();
+			console.log("local conversations", localConversations)
 			const mappedConversations: LocalConversation[] = localConversations.map(conv => ({
 				id: conv.id,
 				title: conv.title,
@@ -25,7 +25,7 @@ export default function useLoadConversations() {
 				localCreatedAt: conv.localCreatedAt
 			}));
 
-			setConversations(mappedConversations);
+			console.log("mapped conversations", localConversations)
 
 		} catch (error) {
 			console.error('Failed to load conversations from local storage:', error);

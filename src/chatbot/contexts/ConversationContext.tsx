@@ -1,11 +1,8 @@
 "use client"
 
 import React, { createContext, useContext, useState } from 'react';
-import { LocalConversation } from '../types/chat.type';
 
 type ConversationContextType = {
-	conversations: LocalConversation[];
-	setConversations: React.Dispatch<React.SetStateAction<LocalConversation[]>>;
 	activeConversation: string | null;
 	setActiveConversation: React.Dispatch<React.SetStateAction<string | null>>;
 };
@@ -15,14 +12,11 @@ const ConversationContext = createContext<ConversationContextType | undefined>(u
 
 // Create a provider component
 export const ConversationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-	const [conversations, setConversations] = useState<LocalConversation[]>([]);
 	const [activeConversation, setActiveConversation] = useState<string | null>(null);
 
 	return (
 		<ConversationContext.Provider
 			value={{
-				conversations,
-				setConversations,
 				activeConversation,
 				setActiveConversation
 			}}

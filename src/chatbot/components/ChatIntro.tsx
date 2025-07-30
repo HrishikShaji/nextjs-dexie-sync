@@ -10,7 +10,7 @@ import ChatInput from "./ChatInput";
 export default function ChatIntro() {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const router = useRouter()
-	const { setActiveConversation, setConversations } = useConversationContext()
+	const { setActiveConversation } = useConversationContext()
 
 	async function handleFirstMessage(inputValue: string) {
 		setIsProcessing(true)
@@ -35,13 +35,11 @@ export default function ChatIntro() {
 		try {
 			const newConversations = await chatDB.conversations.add(localConversation);
 			console.log("@@NEW CONVERSATIONS", newConversations)
-			setConversations(prev => [localConversation, ...prev]);
 			setActiveConversation(id);
 
 			router.push(`/chat/${id}`)
 		} catch (error) {
 			console.error('Failed to create local conversation:', error);
-			setConversations(prev => [localConversation, ...prev]);
 			setActiveConversation(id);
 		} finally {
 

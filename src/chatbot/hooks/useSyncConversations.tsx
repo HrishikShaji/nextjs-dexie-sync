@@ -1,10 +1,8 @@
 import { useEffect } from "react";
 import chatDB from "../local/chat-db";
 import { syncConversations } from "../lib/syncConversations";
-import { useConversationContext } from "../contexts/ConversationContext";
 
 export default function useSyncConversations() {
-	const { setConversations } = useConversationContext()
 	useEffect(() => {
 
 		const autoSync = async () => {
@@ -17,12 +15,11 @@ export default function useSyncConversations() {
 				console.log("@@SYNCING UNSYNCED CONVERSATIONS", unsyncedConversations)
 				syncConversations({
 					unsyncedConversations,
-					onSuccess: (conversations) => setConversations(conversations)
 				});
 			}
 		};
 
-		const interval = setInterval(autoSync, 5000);
+		const interval = setInterval(autoSync, 1000);
 		return () => clearInterval(interval);
 	}, [syncConversations]);
 }

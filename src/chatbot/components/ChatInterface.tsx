@@ -17,23 +17,21 @@ interface Props {
 
 
 export default function ChatInterface({ activeConversation }: Props) {
-	const [localMessages, setLocalMessages] = useState<LocalMessage[]>([]);
 	const [isProcessing, setIsProcessing] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 
-
-	const { isLoading } = useLoadMessages({
-		activeConversation,
-		inititalUserInput: localMessages.length === 1 ? localMessages[0].text : null,
-		onMessages: (messages) => setLocalMessages(messages)
-	})
-
-	useSyncMessages({ onSuccess: (syncedMessages) => setLocalMessages(syncedMessages) })
-
 	const liveConversation = useLiveQuery(() => chatDB.conversations.where("id").equals(activeConversation).first())
 	const messages = liveConversation?.messages || []
 	console.log("@@LIVE MESSAGES", messages)
+
+	const { isLoading } = useLoadMessages({
+		activeConversation,
+		inititalUserInput: messages.length === 1 ? messages[0].text : null,
+	})
+
+	useSyncMessages()
+
 
 	const handleSendMessage = useCallback(async (inputValue: string) => {
 		const trimmedInput = inputValue.trim();
@@ -41,7 +39,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 		let title;
 
-		if (localMessages.length === 0) {
+		if (messages.length === 0) {
 			title = trimmedInput
 			//updateConversationTitle(title)
 		}
@@ -60,15 +58,8 @@ export default function ChatInterface({ activeConversation }: Props) {
 		);
 		setIsProcessing(true);
 
-		// Generate IDs upfront
 		const aiMessageId = crypto.randomUUID();
 
-		// Create user message
-
-		// Immediately update UI with user message
-		setLocalMessages(prev => [...prev, userMessage]);
-
-		// Generate AI response (instant for demo)
 
 		const aiResponseText = await generateAIResponse();
 		const aiMessage: LocalMessage = {
@@ -78,11 +69,6 @@ export default function ChatInterface({ activeConversation }: Props) {
 			syncStatus: "pending", // Mark as local-only
 		};
 
-		// Add AI message to UI immediately for ultra-fast feel
-		setLocalMessages(prev => [...prev, aiMessage]);
-
-		// Update local state
-		// Update database in background
 		await addMessagesToLocalDB(
 			activeConversation,
 			[aiMessage],
@@ -91,12 +77,11 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 		setIsProcessing(false);
 
-		// Refocus input for continuous typing
 		setTimeout(() => inputRef.current?.focus(), 0);
 
 	}, [isProcessing, activeConversation, generateAIResponse, addMessagesToLocalDB]);
 
-	const activeConversationTitle = localMessages[0] ? localMessages[0].text : "No Title"
+	const activeConversationTitle = messages[0] ? messages[0].text : "No Title"
 
 	return (
 		<div className="flex-1 flex flex-col">
