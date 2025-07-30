@@ -8,7 +8,7 @@ interface Props {
 }
 
 export async function syncMessages({ unsyncedMessages, activeConversation, onSuccess }: Props) {
-	console.log("@@UNSYNCED CONVERSATIONS", unsyncedMessages)
+	//	console.log("@@UNSYNCED CONVERSATIONS", unsyncedMessages)
 
 
 	const response = await fetch('/api/messages', {
@@ -28,7 +28,7 @@ export async function syncMessages({ unsyncedMessages, activeConversation, onSuc
 	const syncedIds = results.map((sync) => sync.id)
 	if (success) {
 		// Update local items with sync status and server-generated IDs
-		console.log("@@THESE ARE RESULTS", results)
+		//		console.log("@@THESE ARE RESULTS", results)
 
 		await chatDB.conversations.where("id").equals(activeConversation).modify((conversation) => {
 			conversation.messages = conversation.messages.map((msg) => {

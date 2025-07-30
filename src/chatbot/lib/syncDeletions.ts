@@ -7,7 +7,7 @@ interface Props {
 }
 
 export async function syncDeletions({ unsyncedDeletionIds }: Props) {
-	console.log("@@UNSYNCED CONVERSATIONS", unsyncedDeletionIds)
+	//	console.log("@@UNSYNCED CONVERSATIONS", unsyncedDeletionIds)
 
 	const response = await fetch('/api/conversations', {
 		method: 'DELETE',

@@ -8,7 +8,7 @@ export default function useSyncConversations() {
 	useEffect(() => {
 
 		const autoSync = async () => {
-			console.log("@@CONVERSATIONS-SYNCING CALLED")
+			//			console.log("@@CONVERSATIONS-SYNCING CALLED")
 			const unsyncedConversations = await chatDB.conversations
 				.where("syncStatus")
 				.equals("pending")

@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
 	try {
 		const items = await request.json();
 
-		console.log("syncing called")
+		//		console.log("syncing called")
 		const results = await Promise.all(
 			items.map(async (item: { id: string; name: string }) => {
 				try {

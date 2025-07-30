@@ -5,7 +5,7 @@ import { syncDeletions } from "../lib/syncDeletions";
 export default function useSyncDeletions() {
 	useEffect(() => {
 		const autoSync = async () => {
-			console.log("@@DELETIONS-SYNCING CALLED")
+			//			console.log("@@DELETIONS-SYNCING CALLED")
 			const unsyncedDeletions = await chatDB.deleteQueue
 				.where("syncStatus")
 				.equals("pending")

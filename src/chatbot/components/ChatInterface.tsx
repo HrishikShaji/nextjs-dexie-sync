@@ -8,6 +8,8 @@ import useSyncMessages from "../hooks/useSyncMessages";
 import { addMessagesToLocalDB } from "../lib/addMessagesToLocalDB";
 import useLoadMessages from "../hooks/useLoadMessages";
 import ChatMessages from "./ChatMessages";
+import chatDB from "../local/chat-db";
+import { useLiveQuery } from "dexie-react-hooks"
 
 interface Props {
 	activeConversation: string;
@@ -29,7 +31,9 @@ export default function ChatInterface({ activeConversation }: Props) {
 
 	useSyncMessages({ onSuccess: (syncedMessages) => setLocalMessages(syncedMessages) })
 
-
+	const liveConversation = useLiveQuery(() => chatDB.conversations.where("id").equals(activeConversation).first())
+	const messages = liveConversation?.messages || []
+	console.log("@@LIVE MESSAGES", messages)
 
 	const handleSendMessage = useCallback(async (inputValue: string) => {
 		const trimmedInput = inputValue.trim();
@@ -41,20 +45,25 @@ export default function ChatInterface({ activeConversation }: Props) {
 			title = trimmedInput
 			//updateConversationTitle(title)
 		}
-
-		setIsProcessing(true);
-
-		// Generate IDs upfront
 		const userMessageId = crypto.randomUUID();
-		const aiMessageId = crypto.randomUUID();
-
-		// Create user message
 		const userMessage: LocalMessage = {
 			id: userMessageId,
 			text: trimmedInput,
 			sender: 'user',
 			syncStatus: "pending", // Mark as local-only
 		};
+
+		await addMessagesToLocalDB(
+			activeConversation,
+			[userMessage],
+			title
+		);
+		setIsProcessing(true);
+
+		// Generate IDs upfront
+		const aiMessageId = crypto.randomUUID();
+
+		// Create user message
 
 		// Immediately update UI with user message
 		setLocalMessages(prev => [...prev, userMessage]);
@@ -76,7 +85,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 		// Update database in background
 		await addMessagesToLocalDB(
 			activeConversation,
-			[userMessage, aiMessage],
+			[aiMessage],
 			title
 		);
 
@@ -99,7 +108,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 			</div>
 
 			<ChatMessages
-				messages={localMessages}
+				messages={messages}
 			/>
 			<ChatInput
 				onSubmit={handleSendMessage}
