@@ -12,7 +12,7 @@ export default function useSyncConversations() {
 				.equals("pending")
 				.toArray();
 			if (unsyncedConversations.length > 0) {
-				console.log("@@SYNCING UNSYNCED CONVERSATIONS", unsyncedConversations)
+				//		console.log("@@SYNCING UNSYNCED CONVERSATIONS", unsyncedConversations)
 				syncConversations({
 					unsyncedConversations,
 				});

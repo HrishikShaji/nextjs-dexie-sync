@@ -14,7 +14,7 @@ export default function useSyncMessages() {
 			if (!conversation) return
 			const unsyncedMessages = conversation.messages.filter((msg) => msg.syncStatus === "pending");
 			if (unsyncedMessages.length > 0 && activeConversation) {
-				console.log("@@SYNCING UNSYNCED MESSAGES:", unsyncedMessages);
+				//		console.log("@@SYNCING UNSYNCED MESSAGES:", unsyncedMessages);
 				syncMessages({
 					unsyncedMessages,
 					activeConversation,

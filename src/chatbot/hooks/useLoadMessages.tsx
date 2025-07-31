@@ -14,7 +14,7 @@ export default function useLoadMessages({ inititalUserInput, activeConversation 
 
 	async function forFirstMessage(userMessage: string) {
 		if (!activeConversation) return;
-		console.log("@@RAN FIRST MESSAGE")
+		//		console.log("@@RAN FIRST MESSAGE")
 		setIsLoading(true);
 
 		// Generate IDs upfront

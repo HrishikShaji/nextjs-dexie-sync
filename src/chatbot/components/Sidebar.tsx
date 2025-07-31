@@ -12,6 +12,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 export default function Sidebar() {
 	const conversations = useLiveQuery(() => chatDB.conversations.orderBy('localCreatedAt').reverse().toArray()) || []
 
+	{/*
 	useEffect(() => {
 		async function loadData() {
 			const conversations = await chatDB.conversations.toArray()
@@ -34,10 +35,12 @@ export default function Sidebar() {
 		loadData()
 	}, [])
 
+*/}
 
-	useSyncConversations()
 
-	useSyncDeletions()
+	//	useSyncConversations()
+
+	//	useSyncDeletions()
 
 
 

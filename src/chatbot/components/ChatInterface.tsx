@@ -1,15 +1,15 @@
 "use client"
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { act, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { LocalConversation, LocalMessage, MessageSyncResponse, SyncResponse, SyncResult } from "../types/chat.type";
 import { generateAIResponse } from "../lib/generateAIResponse";
 import ChatInput from "./ChatInput";
-import useSyncMessages from "../hooks/useSyncMessages";
 import { addMessagesToLocalDB } from "../lib/addMessagesToLocalDB";
-import useLoadMessages from "../hooks/useLoadMessages";
 import ChatMessages from "./ChatMessages";
 import chatDB from "../local/chat-db";
 import { useLiveQuery } from "dexie-react-hooks"
+import useWebSocket from "../hooks/useWebSocket";
+import { useConversationContext } from "../contexts/ConversationContext";
 
 interface Props {
 	activeConversation: string;
@@ -19,19 +19,39 @@ interface Props {
 export default function ChatInterface({ activeConversation }: Props) {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const { syncMessage, syncConversation, isConnected } = useWebSocket()
+	const { initialInput, setInitialInput } = useConversationContext()
 
+
+	useEffect(() => {
+		async function createConversation() {
+			console.log("@@CONVERSATION RAN")
+
+			// Check if conversation already exists
+			const existingConversation = await chatDB.conversations.where("id").equals(activeConversation).first();
+			console.log("@@EXISTING", existingConversation)
+			if (!existingConversation) {
+				const localConversation: LocalConversation = {
+					id: activeConversation,
+					title: initialInput,
+					syncStatus: "pending",
+					messages: [],
+					localCreatedAt: new Date()
+				};
+				await chatDB.conversations.add(localConversation)
+				syncConversation(localConversation)
+			}
+
+			setInitialInput("")
+		}
+		if (initialInput) {
+			createConversation()
+		}
+	}, [initialInput])
 
 	const liveConversation = useLiveQuery(() => chatDB.conversations.where("id").equals(activeConversation).first())
+
 	const messages = liveConversation?.messages || []
-	console.log("@@LIVE MESSAGES", messages)
-
-	const { isLoading } = useLoadMessages({
-		activeConversation,
-		inititalUserInput: messages.length === 1 ? messages[0].text : null,
-	})
-
-	useSyncMessages()
-
 
 	const handleSendMessage = useCallback(async (inputValue: string) => {
 		const trimmedInput = inputValue.trim();
@@ -50,6 +70,8 @@ export default function ChatInterface({ activeConversation }: Props) {
 			sender: 'user',
 			syncStatus: "pending", // Mark as local-only
 		};
+
+		syncMessage(userMessage)
 
 		await addMessagesToLocalDB(
 			activeConversation,
@@ -75,6 +97,8 @@ export default function ChatInterface({ activeConversation }: Props) {
 			title
 		);
 
+		syncMessage(aiMessage)
+
 		setIsProcessing(false);
 
 		setTimeout(() => inputRef.current?.focus(), 0);
@@ -86,10 +110,11 @@ export default function ChatInterface({ activeConversation }: Props) {
 	return (
 		<div className="flex-1 flex flex-col">
 			{/* Header */}
-			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center">
+			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center justify-between">
 				<h2 className="text-lg font-semibold text-gray-800 truncate">
 					{activeConversationTitle}
 				</h2>
+				<div>{isConnected ? "Connected" : "Disconnected"}</div>
 			</div>
 
 			<ChatMessages
@@ -97,7 +122,7 @@ export default function ChatInterface({ activeConversation }: Props) {
 			/>
 			<ChatInput
 				onSubmit={handleSendMessage}
-				isProcessing={isProcessing || isLoading}
+				isProcessing={isProcessing}
 			/>
 
 		</div>

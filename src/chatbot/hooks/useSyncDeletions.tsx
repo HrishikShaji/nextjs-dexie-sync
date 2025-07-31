@@ -12,7 +12,7 @@ export default function useSyncDeletions() {
 				.toArray();
 			if (unsyncedDeletions.length > 0) {
 				const unsyncedDeletionIds = unsyncedDeletions.map((del) => del.id)
-				console.log("@@SYNCING UNSYNCED DELETED ITEMS:", unsyncedDeletionIds);
+				//				console.log("@@SYNCING UNSYNCED DELETED ITEMS:", unsyncedDeletionIds);
 				syncDeletions({ unsyncedDeletionIds })
 			}
 		};

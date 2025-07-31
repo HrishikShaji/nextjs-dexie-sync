@@ -10,10 +10,23 @@ import ChatInput from "./ChatInput";
 export default function ChatIntro() {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const router = useRouter()
-	const { setActiveConversation } = useConversationContext()
+	const { setActiveConversation, setInitialInput } = useConversationContext()
 
+	async function startConversation(inputValue: string) {
+		setIsProcessing(true)
+		setInitialInput(inputValue)
+
+		const id = crypto.randomUUID();
+
+		setActiveConversation(id);
+		router.push(`/chat/${id}`)
+
+	}
+
+	{/*
 	async function handleFirstMessage(inputValue: string) {
 		setIsProcessing(true)
+		setInitialInput(inputValue)
 		const id = crypto.randomUUID();
 		const title = inputValue;
 
@@ -48,6 +61,8 @@ export default function ChatIntro() {
 
 	}
 
+*/}
+
 	return (
 		<div className="flex-1 flex flex-col">
 			<div className="flex-1 p-6 overflow-y-auto flex items-center justify-center bg-gray-50 scroll-smooth">
@@ -64,7 +79,7 @@ export default function ChatIntro() {
 			</div>
 			<div className="p-4 border-t border-gray-200 bg-white">
 				<ChatInput
-					onSubmit={handleFirstMessage}
+					onSubmit={startConversation}
 					isProcessing={isProcessing}
 				/>
 			</div>
