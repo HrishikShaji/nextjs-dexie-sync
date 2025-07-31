@@ -6,6 +6,9 @@ import useWebSocket from "../hooks/useWebSocket";
 import { LocalConversation, LocalMessage } from "../types/chat.type";
 import { useLiveQuery } from "dexie-react-hooks";
 import ChatMessages from "./ChatMessages";
+import { addMessagesToLocalDB } from "../lib/addMessagesToLocalDB";
+import { generateAIResponse } from "../lib/generateAIResponse";
+import ChatInput from "./ChatInput";
 
 interface Props {
 	activeConversation: string;
@@ -13,9 +16,10 @@ interface Props {
 
 export default function SimpleInterface({ activeConversation }: Props) {
 	const [conversationId, setConversationId] = useState("")
+	const [isProcessing, setIsProcessing] = useState(false);
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
 	const { initialInput } = useConversationContext()
-	const { syncConversation, isConnected } = useWebSocket()
+	const { syncConversation, isConnected, syncMessage } = useWebSocket()
 
 	useEffect(() => {
 		if (activeConversation) {
@@ -70,8 +74,59 @@ export default function SimpleInterface({ activeConversation }: Props) {
 		[conversationId]
 	)
 
-	console.log("@@LIVE CONVERSATION", liveConversation)
+	//console.log("@@LIVE CONVERSATION", liveConversation)
 	const messages = liveConversation?.messages || []
+	const handleSendMessage = async (inputValue: string) => {
+		const trimmedInput = inputValue.trim();
+		console.log("INPTUs", trimmedInput, isProcessing, conversationId)
+		if (!trimmedInput || isProcessing || !conversationId) return;
+
+		let title;
+
+		if (messages.length === 0) {
+			title = trimmedInput
+			//updateConversationTitle(title)
+		}
+		const userMessageId = crypto.randomUUID();
+		const userMessage: LocalMessage = {
+			id: userMessageId,
+			text: trimmedInput,
+			sender: 'user',
+			syncStatus: "pending", // Mark as local-only
+		};
+
+		syncMessage(userMessage, conversationId)
+
+		await addMessagesToLocalDB(
+			conversationId,
+			[userMessage],
+			title
+		);
+		setIsProcessing(true);
+
+		const aiMessageId = crypto.randomUUID();
+
+
+		const aiResponseText = await generateAIResponse();
+		const aiMessage: LocalMessage = {
+			id: aiMessageId,
+			text: aiResponseText,
+			sender: 'ai',
+			syncStatus: "pending", // Mark as local-only
+		};
+
+		await addMessagesToLocalDB(
+			conversationId,
+			[aiMessage],
+			title
+		);
+
+		syncMessage(aiMessage, conversationId)
+
+		setIsProcessing(false);
+
+
+	};
 
 	return (
 		<div className="flex-1 flex flex-col">
@@ -81,6 +136,10 @@ export default function SimpleInterface({ activeConversation }: Props) {
 			</div>
 			<ChatMessages
 				messages={messages}
+			/>
+			<ChatInput
+				isProcessing={isProcessing}
+				onSubmit={handleSendMessage}
 			/>
 		</div>
 	)

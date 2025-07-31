@@ -7,7 +7,7 @@ export const addMessagesToLocalDB = async (
 	newTitle?: string
 ) => {
 	try {
-
+		console.log("@@FIRED THIS")
 		// Update locally in IndexedDB
 		await chatDB.conversations
 			.where('id')

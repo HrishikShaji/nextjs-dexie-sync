@@ -3,7 +3,7 @@ import { LocalConversation, LocalMessage } from "../types/chat.type";
 import chatDB from "../local/chat-db";
 
 async function onMessageSync(data: any) {
-	//	console.log("@@MESSAGE-SYNC-RESPONSE:", data)
+	console.log("@@MESSAGE-SYNC-RESPONSE:", data)
 	await chatDB.conversations.where("id").equals(data.conversationId).modify((conversation) => {
 		conversation.messages = conversation.messages.map((msg) => {
 			if (msg.id === data.id) {
@@ -78,11 +78,11 @@ export default function useWebSocket() {
 		};
 	}, []);
 
-	function syncMessage(message: LocalMessage) {
+	function syncMessage(message: LocalMessage, conversationId: string) {
 		if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
 			wsRef.current.send(JSON.stringify({
 				type: "MESSAGE_SYNC_REQUEST",
-				data: message
+				data: { ...message, conversationId }
 			}))
 		}
 	}
