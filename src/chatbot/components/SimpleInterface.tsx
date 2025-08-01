@@ -20,6 +20,8 @@ export default function SimpleInterface({ activeConversation }: Props) {
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
 	const { initialInput } = useConversationContext()
 	const { syncConversation, isConnected, syncMessage } = useWebSocket()
+	const workerRef = useRef<Worker>(null)
+
 
 	useEffect(() => {
 		if (activeConversation) {
@@ -27,7 +29,11 @@ export default function SimpleInterface({ activeConversation }: Props) {
 		}
 	}, [activeConversation])
 
+
 	useEffect(() => {
+		const worker = new Worker(new URL('../../worker/simple-worker.ts', import.meta.url));
+		workerRef.current = worker
+		console.log(workerRef.current)
 		if (!conversationId || !isConnected || !initialInput || isCreatingConversation) return
 
 		async function createConversation() {
@@ -57,6 +63,13 @@ export default function SimpleInterface({ activeConversation }: Props) {
 				}
 
 				await chatDB.conversations.add(conversation);
+				{/*
+				if (workerRef.current) {
+					workerRef.current.postMessage({
+						type: "SYNC_MESSAGE"
+					})
+				}
+			*/}
 				syncConversation(conversation)
 				const aiResponse = await generateAIResponse()
 				const aiResponseObj: LocalMessage = {
@@ -79,6 +92,11 @@ export default function SimpleInterface({ activeConversation }: Props) {
 		}
 
 		createConversation();
+		return () => {
+			if (workerRef.current) {
+				workerRef.current.terminate();
+			}
+		};
 	}, [conversationId, isConnected, initialInput]) // Removed syncConversation from dependencies
 
 	const liveConversation = useLiveQuery(() =>
