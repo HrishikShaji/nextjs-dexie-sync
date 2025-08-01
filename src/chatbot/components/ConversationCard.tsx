@@ -37,7 +37,9 @@ export default function ConversationCard({ conversation }: Props) {
 				syncStatus: "pending"
 			})
 			await chatDB.conversations.delete(conversationId);
-
+			if (activeConversation === conversationId) {
+				router.push("/chat")
+			}
 
 		} catch (error) {
 			console.error('@@FAILED TO DELETE LOCAL CONVERSATION:', error);

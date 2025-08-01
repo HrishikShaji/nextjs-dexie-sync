@@ -58,6 +58,18 @@ export default function SimpleInterface({ activeConversation }: Props) {
 
 				await chatDB.conversations.add(conversation);
 				syncConversation(conversation)
+				const aiResponse = await generateAIResponse()
+				const aiResponseObj: LocalMessage = {
+					id: crypto.randomUUID(),
+					text: aiResponse,
+					sender: "ai",
+					syncStatus: "pending"
+				}
+
+				await chatDB.conversations.where("id").equals(conversationId).modify((conversation) => {
+					conversation.messages = [...conversation.messages, aiResponseObj]
+				})
+				syncMessage(aiResponseObj, conversationId)
 				console.log("Successfully created conversation:", conversationId);
 			} catch (error) {
 				console.error("Error creating conversation:", error);
