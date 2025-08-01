@@ -13,6 +13,7 @@ export const addMessagesToLocalDB = async (
 			.where('id')
 			.equals(conversationId)
 			.modify(conversation => {
+				conversation.syncStatus = "pending";
 				conversation.messages = [...conversation.messages, ...newMessages];
 				if (newTitle) conversation.title = newTitle;
 			});

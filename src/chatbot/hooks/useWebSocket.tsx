@@ -3,7 +3,7 @@ import { LocalConversation, LocalMessage } from "../types/chat.type";
 import chatDB from "../local/chat-db";
 
 async function onMessageSync(data: any) {
-	console.log("@@MESSAGE-SYNC-RESPONSE:", data)
+	//console.log("@@MESSAGE-SYNC-RESPONSE:", data)
 	await chatDB.conversations.where("id").equals(data.conversationId).modify((conversation) => {
 		conversation.messages = conversation.messages.map((msg) => {
 			if (msg.id === data.id) {
@@ -60,11 +60,11 @@ export default function useWebSocket() {
 
 			wsRef.current.onclose = () => {
 				setIsConnected(false);
-				console.log('Disconnected from WebSocket');
+				//console.log('Disconnected from WebSocket');
 			};
 
 			wsRef.current.onerror = (error) => {
-				console.log('WebSocket error:', error);
+				//console.log('WebSocket error:', error);
 			};
 		};
 

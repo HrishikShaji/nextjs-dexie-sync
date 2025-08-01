@@ -20,7 +20,6 @@ export default function SimpleInterface({ activeConversation }: Props) {
 	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
 	const { initialInput } = useConversationContext()
 	const { syncConversation, isConnected, syncMessage } = useWebSocket()
-	const workerRef = useRef<Worker>(null)
 
 
 	useEffect(() => {
@@ -31,9 +30,6 @@ export default function SimpleInterface({ activeConversation }: Props) {
 
 
 	useEffect(() => {
-		const worker = new Worker(new URL('../../worker/simple-worker.ts', import.meta.url));
-		workerRef.current = worker
-		console.log(workerRef.current)
 		if (!conversationId || !isConnected || !initialInput || isCreatingConversation) return
 
 		async function createConversation() {
@@ -59,7 +55,7 @@ export default function SimpleInterface({ activeConversation }: Props) {
 					title: initialInput,
 					localCreatedAt: new Date(),
 					messages: [message],
-					syncStatus: "pending"
+					syncStatus: "new"
 				}
 
 				await chatDB.conversations.add(conversation);
@@ -70,7 +66,7 @@ export default function SimpleInterface({ activeConversation }: Props) {
 					})
 				}
 			*/}
-				syncConversation(conversation)
+				//syncConversation(conversation)
 				const aiResponse = await generateAIResponse()
 				const aiResponseObj: LocalMessage = {
 					id: crypto.randomUUID(),
@@ -80,9 +76,10 @@ export default function SimpleInterface({ activeConversation }: Props) {
 				}
 
 				await chatDB.conversations.where("id").equals(conversationId).modify((conversation) => {
-					conversation.messages = [...conversation.messages, aiResponseObj]
+					conversation.syncStatus = "pending";
+					conversation.messages = [...conversation.messages, aiResponseObj];
 				})
-				syncMessage(aiResponseObj, conversationId)
+				//syncMessage(aiResponseObj, conversationId)
 				console.log("Successfully created conversation:", conversationId);
 			} catch (error) {
 				console.error("Error creating conversation:", error);
@@ -92,11 +89,6 @@ export default function SimpleInterface({ activeConversation }: Props) {
 		}
 
 		createConversation();
-		return () => {
-			if (workerRef.current) {
-				workerRef.current.terminate();
-			}
-		};
 	}, [conversationId, isConnected, initialInput]) // Removed syncConversation from dependencies
 
 	const liveConversation = useLiveQuery(() =>
@@ -125,7 +117,7 @@ export default function SimpleInterface({ activeConversation }: Props) {
 			syncStatus: "pending", // Mark as local-only
 		};
 
-		syncMessage(userMessage, conversationId)
+		//syncMessage(userMessage, conversationId)
 
 		await addMessagesToLocalDB(
 			conversationId,
@@ -151,7 +143,7 @@ export default function SimpleInterface({ activeConversation }: Props) {
 			title
 		);
 
-		syncMessage(aiMessage, conversationId)
+		//syncMessage(aiMessage, conversationId)
 
 		setIsProcessing(false);
 

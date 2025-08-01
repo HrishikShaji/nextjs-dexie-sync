@@ -43,7 +43,7 @@ export type LocalConversation = {
 	id: string;
 	title: string;
 	messages: LocalMessage[];
-	syncStatus: "pending" | "synced" | "error";
+	syncStatus: "pending" | "synced" | "error" | "new";
 	localCreatedAt?: Date;
 };
 

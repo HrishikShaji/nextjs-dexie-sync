@@ -1,5 +1,6 @@
 import Sidebar from "@/chatbot/components/Sidebar"
 import { ConversationProvider } from "@/chatbot/contexts/ConversationContext"
+import SyncWorkerProvider from "@/providers/SyncWorkerProvider"
 
 export default function ChatLayout({
   children,
@@ -9,8 +10,10 @@ export default function ChatLayout({
   return (
     <div className="flex h-screen bg-gray-50">
       <ConversationProvider>
-        <Sidebar />
-        {children}
+        <SyncWorkerProvider>
+          <Sidebar />
+          {children}
+        </SyncWorkerProvider>
       </ConversationProvider>
     </div>
   )
