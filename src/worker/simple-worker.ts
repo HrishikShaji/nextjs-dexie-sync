@@ -5,7 +5,7 @@ console.log("@@SIMPLE WORKER INITIATED")
 async function onMessageSync(data: any) {
   console.log("@@MESSAGE-SYNC-RESPONSE:", data)
   await chatDB.conversations.where("id").equals(data.conversationId).modify((conversation) => {
-    conversation.syncStatus = "synced";
+    conversation.syncStatus = data.status;
     conversation.messages = conversation.messages.map((msg) => {
       if (msg.id === data.id) {
         return {
@@ -27,14 +27,16 @@ async function onConversationSync(data: any) {
 }
 
 const observable = liveQuery(async () => {
-  const [newConversations, pendingConversations] = await Promise.all([
+  const [newConversations, pendingConversations, erroredConversations] = await Promise.all([
     chatDB.conversations.where("syncStatus").equals("new").toArray(),
-    chatDB.conversations.where("syncStatus").equals("pending").toArray()
+    chatDB.conversations.where("syncStatus").equals("pending").toArray(),
+    chatDB.conversations.where("syncStatus").equals("error").toArray()
   ])
 
   return {
     hasNew: newConversations.length > 0,
     hasPending: pendingConversations.length > 0,
+    hasErrored: erroredConversations.length > 0,
     timestamp: Date.now() // Force update detection
   }
 })
@@ -120,6 +122,38 @@ observable.subscribe({
       }
 
     }
+
+    if (result.hasErrored) {
+      console.log("SYNCING ERRORED MESSAGES")
+      const erroredConversation = await chatDB.conversations.where("syncStatus").equals("error").first()
+      console.log("ERRORED CONVERSATION:", erroredConversation)
+      if (erroredConversation && socket.readyState === WebSocket.OPEN) {
+        const erroredMessages = erroredConversation.messages.filter((msg) => msg.syncStatus === "error")
+        const erroredMessage = erroredMessages[0]
+        if (erroredMessage) {
+          console.log("@@SYNCING ERRORED MESSAGE", erroredMessage)
+          await chatDB.conversations.where("id").equals(erroredConversation.id).modify((conversation) => {
+            conversation.messages = conversation.messages.map((msg) => {
+              if (msg.id === erroredMessage.id) {
+                return {
+                  ...msg,
+                  syncStatus: "syncing"
+                }
+              }
+              return msg
+            })
+          })
+          socket.send(JSON.stringify({
+            type: "MESSAGE_SYNC_REQUEST",
+            data: { ...erroredMessage, conversationId: erroredConversation.id }
+          }))
+
+        }
+      } else {
+        console.log("SOCKET NOT READY")
+      }
+    }
+
   }
 })
 
