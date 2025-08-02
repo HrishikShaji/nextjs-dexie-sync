@@ -1,3 +1,4 @@
+import AdvancedInterface from "@/chatbot/components/AdvancedInterface"
 import ChatInterface from "@/chatbot/components/ChatInterface"
 import ChatIntro from "@/chatbot/components/ChatIntro"
 import SimpleInterface from "@/chatbot/components/SimpleInterface"
@@ -7,5 +8,5 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   if (!id) return <ChatIntro />
 
-  return (<SimpleInterface activeConversation={id} />)
+  return (<AdvancedInterface activeConversation={id} />)
 }

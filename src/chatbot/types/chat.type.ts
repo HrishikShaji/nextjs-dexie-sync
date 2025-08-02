@@ -42,6 +42,7 @@ export type LocalMessage = {
 export type LocalConversation = {
 	id: string;
 	title: string;
+	initialPrompt: string;
 	messages: LocalMessage[];
 	syncStatus: "pending" | "synced" | "error" | "new" | "syncing";
 	localCreatedAt?: Date;

@@ -7,7 +7,7 @@ import ChatInput from "./ChatInput";
 import { LocalConversation } from "../types/chat.type";
 import chatDB from "../local/chat-db";
 
-export default function ChatIntro() {
+export default function AdvancedIntro() {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const router = useRouter()
 	const { setActiveConversation, setInitialInput } = useConversationContext()
@@ -23,6 +23,7 @@ export default function ChatIntro() {
 		const conversation: LocalConversation = {
 			id,
 			title: inputValue,
+			initialPrompt: inputValue,
 			localCreatedAt: new Date(),
 			messages: [],
 			syncStatus: "new"

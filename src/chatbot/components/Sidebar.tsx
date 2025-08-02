@@ -1,48 +1,12 @@
 "use client"
 import ConversationCard from "./ConversationCard";
 import Link from "next/link";
-import useSyncConversations from "../hooks/useSyncConversations";
-import useSyncDeletions from "../hooks/useSyncDeletions";
-import { useEffect } from "react";
 import chatDB from "../local/chat-db";
-import { LocalMessage } from "../types/chat.type";
 import { useLiveQuery } from "dexie-react-hooks";
 
 
 export default function Sidebar() {
 	const conversations = useLiveQuery(() => chatDB.conversations.orderBy('localCreatedAt').reverse().toArray()) || []
-
-	{/*
-	useEffect(() => {
-		async function loadData() {
-			const conversations = await chatDB.conversations.toArray()
-			console.log("@@INITIAL CONVERSATIONS", conversations)
-
-			let unsyncedMessages: LocalMessage[] = []
-
-			conversations.forEach((conversation) => {
-				conversation.messages.forEach((message) => {
-					if (message.syncStatus === "pending") {
-						unsyncedMessages.push(message)
-					}
-				})
-			})
-
-			console.log("@@UNSYNCED MESSAGES", unsyncedMessages)
-
-		}
-
-		loadData()
-	}, [])
-
-*/}
-
-
-	//	useSyncConversations()
-
-	//	useSyncDeletions()
-
-
 
 	return (
 		<div className="w-64 bg-white border-r border-gray-200 flex flex-col">

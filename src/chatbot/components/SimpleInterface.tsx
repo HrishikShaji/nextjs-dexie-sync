@@ -2,7 +2,6 @@
 import { act, FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import chatDB from "../local/chat-db";
 import { useConversationContext } from "../contexts/ConversationContext";
-import useWebSocket from "../hooks/useWebSocket";
 import { LocalConversation, LocalMessage } from "../types/chat.type";
 import { useLiveQuery } from "dexie-react-hooks";
 import ChatMessages from "./ChatMessages";
