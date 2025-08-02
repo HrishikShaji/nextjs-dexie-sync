@@ -37,11 +37,6 @@ export default function SimpleInterface({ activeConversation }: Props) {
 				setIsCreatingConversation(true)
 
 				// Check if conversation already exists
-				const existingConversation = await chatDB.conversations.where("id").equals(conversationId).first()
-				if (existingConversation) {
-					console.log("Conversation already exists:", conversationId)
-					return
-				}
 
 				const message: LocalMessage = {
 					text: initialInput,
@@ -50,15 +45,11 @@ export default function SimpleInterface({ activeConversation }: Props) {
 					sender: "user"
 				}
 
-				const conversation: LocalConversation = {
-					id: conversationId,
-					title: initialInput,
-					localCreatedAt: new Date(),
-					messages: [message],
-					syncStatus: "new"
-				}
 
-				await chatDB.conversations.add(conversation);
+				await chatDB.conversations.where("id").equals(conversationId).modify((conversation) => {
+					conversation.syncStatus = "pending";
+					conversation.messages = [message];
+				})
 				{/*
 				if (workerRef.current) {
 					workerRef.current.postMessage({

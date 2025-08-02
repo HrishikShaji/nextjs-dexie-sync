@@ -3,7 +3,7 @@ import { liveQuery } from "dexie"
 
 console.log("@@SIMPLE WORKER INITIATED")
 async function onMessageSync(data: any) {
-  //console.log("@@MESSAGE-SYNC-RESPONSE:", data)
+  console.log("@@MESSAGE-SYNC-RESPONSE:", data)
   await chatDB.conversations.where("id").equals(data.conversationId).modify((conversation) => {
     conversation.syncStatus = "synced";
     conversation.messages = conversation.messages.map((msg) => {
@@ -26,7 +26,18 @@ async function onConversationSync(data: any) {
   });
 }
 
-const observable = liveQuery(() => chatDB.conversations.toArray())
+const observable = liveQuery(async () => {
+  const [newConversations, pendingConversations] = await Promise.all([
+    chatDB.conversations.where("syncStatus").equals("new").toArray(),
+    chatDB.conversations.where("syncStatus").equals("pending").toArray()
+  ])
+
+  return {
+    hasNew: newConversations.length > 0,
+    hasPending: pendingConversations.length > 0,
+    timestamp: Date.now() // Force update detection
+  }
+})
 const socket = new WebSocket('ws://localhost:3001')
 
 socket.onopen = () => {
@@ -64,12 +75,11 @@ observable.subscribe({
   next: async (result) => {
     console.log("DB CHANGE", result)
     const newConversation = await chatDB.conversations.where("syncStatus").equals("new").first()
-    const unsyncedConversation = await chatDB.conversations.where("syncStatus").equals("pending").first()
 
-    if (newConversation) {
-      console.log("@@CREATING CONVERSATION", newConversation)
+    if (result.hasNew) {
+      //console.log("@@CREATING CONVERSATION", newConversation)
       if (socket.readyState === WebSocket.OPEN) {
-        console.log("@@SENDING CREATE_CONVERSATION_REQUEST")
+        //console.log("@@SENDING CREATE_CONVERSATION_REQUEST")
         socket.send(JSON.stringify({
           type: "CREATE_CONVERSATION_REQUEST",
           data: newConversation
@@ -80,15 +90,31 @@ observable.subscribe({
 
     }
 
-    if (unsyncedConversation) {
-      console.log("@@SYNCING CONVERSATION", unsyncedConversation)
-      if (socket.readyState === WebSocket.OPEN) {
+    if (result.hasPending) {
+      const unsyncedConversation = await chatDB.conversations.where("syncStatus").equals("pending").first()
+      console.log("@@SYNCING MESSAGE WITH CONVERSATION", unsyncedConversation)
+      if (unsyncedConversation && socket.readyState === WebSocket.OPEN) {
         const unsyncedMessages = unsyncedConversation.messages.filter(msg => msg.syncStatus === "pending")
+        console.log("@@UNSYNCED MESSAGES", unsyncedMessages)
         const unsyncedMessage = unsyncedMessages[0]
-        socket.send(JSON.stringify({
-          type: "MESSAGE_SYNC_REQUEST",
-          data: { ...unsyncedMessage, conversationId: unsyncedConversation.id }
-        }))
+        if (unsyncedMessage) {
+          console.log("@@SYNCING MESSAGE", unsyncedMessage)
+          await chatDB.conversations.where("id").equals(unsyncedConversation.id).modify((conversation) => {
+            conversation.messages = conversation.messages.map((msg) => {
+              if (msg.id === unsyncedMessage.id) {
+                return {
+                  ...msg,
+                  syncStatus: "syncing"
+                }
+              }
+              return msg
+            })
+          })
+          socket.send(JSON.stringify({
+            type: "MESSAGE_SYNC_REQUEST",
+            data: { ...unsyncedMessage, conversationId: unsyncedConversation.id }
+          }))
+        }
       } else {
         console.log("**SOCKET NOT READY")
       }

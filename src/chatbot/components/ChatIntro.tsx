@@ -3,9 +3,9 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { useConversationContext } from "../contexts/ConversationContext";
-import { LocalConversation, LocalMessage } from "../types/chat.type";
-import chatDB from "../local/chat-db";
 import ChatInput from "./ChatInput";
+import { LocalConversation } from "../types/chat.type";
+import chatDB from "../local/chat-db";
 
 export default function ChatIntro() {
 	const [isProcessing, setIsProcessing] = useState(false);
@@ -19,6 +19,17 @@ export default function ChatIntro() {
 		const id = crypto.randomUUID();
 
 		setActiveConversation(id);
+
+		const conversation: LocalConversation = {
+			id,
+			title: inputValue,
+			localCreatedAt: new Date(),
+			messages: [],
+			syncStatus: "new"
+		}
+
+		await chatDB.conversations.add(conversation);
+
 		router.push(`/chat/${id}`)
 
 	}

@@ -36,14 +36,14 @@ export type LocalMessage = {
 	id: string;
 	text: string;
 	sender: 'user' | 'ai';
-	syncStatus: "pending" | "synced" | "error";
+	syncStatus: "pending" | "synced" | "error" | "syncing";
 }
 
 export type LocalConversation = {
 	id: string;
 	title: string;
 	messages: LocalMessage[];
-	syncStatus: "pending" | "synced" | "error" | "new";
+	syncStatus: "pending" | "synced" | "error" | "new" | "syncing";
 	localCreatedAt?: Date;
 };
 
