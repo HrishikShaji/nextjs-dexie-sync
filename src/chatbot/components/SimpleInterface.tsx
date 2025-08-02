@@ -17,9 +17,7 @@ interface Props {
 export default function SimpleInterface({ activeConversation }: Props) {
 	const [conversationId, setConversationId] = useState("")
 	const [isProcessing, setIsProcessing] = useState(false);
-	const [isCreatingConversation, setIsCreatingConversation] = useState(false)
-	const { initialInput } = useConversationContext()
-	const { syncConversation, isConnected, syncMessage } = useWebSocket()
+	const { initialInput, setInitialInput } = useConversationContext()
 
 
 	useEffect(() => {
@@ -30,11 +28,10 @@ export default function SimpleInterface({ activeConversation }: Props) {
 
 
 	useEffect(() => {
-		if (!conversationId || !isConnected || !initialInput || isCreatingConversation) return
+		if (!conversationId || !initialInput) return
 
 		async function createConversation() {
 			try {
-				setIsCreatingConversation(true)
 
 				// Check if conversation already exists
 
@@ -75,12 +72,12 @@ export default function SimpleInterface({ activeConversation }: Props) {
 			} catch (error) {
 				console.error("Error creating conversation:", error);
 			} finally {
-				setIsCreatingConversation(false)
+				setInitialInput("")
 			}
 		}
 
 		createConversation();
-	}, [conversationId, isConnected, initialInput]) // Removed syncConversation from dependencies
+	}, [conversationId, initialInput]) // Removed syncConversation from dependencies
 
 	const liveConversation = useLiveQuery(() =>
 		chatDB.conversations.where("id").equals(conversationId).first(),
@@ -145,7 +142,6 @@ export default function SimpleInterface({ activeConversation }: Props) {
 		<div className="flex-1 flex flex-col">
 			{/* Header */}
 			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center justify-between">
-				{isConnected ? "Connected" : "Disconnected"}
 			</div>
 			<ChatMessages
 				messages={messages}
