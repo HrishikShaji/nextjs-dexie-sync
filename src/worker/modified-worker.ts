@@ -136,7 +136,8 @@ observable.subscribe({
 
     if (result.pendingConversations.length > 0) {
       for (const unsyncedConversation of result.pendingConversations) {
-        const unsyncedMessages = unsyncedConversation.messages.filter(msg => msg.syncStatus === "pending")
+        const unsyncedMessages = unsyncedConversation.messages.filter(msg => msg.syncStatus === "pending" || msg.syncStatus === "stream-complete")
+        console.log("###UNSYNCEDMESSAGES", unsyncedMessages)
         for (const unsyncedMessage of unsyncedMessages) {
           await updateMessageSyncStatus({
             messageId: unsyncedMessage.id,

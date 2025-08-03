@@ -35,10 +35,10 @@ async function finalizeLastMessage({ conversationId }: { conversationId: string 
 		if (conversation.messages.length > 0) {
 			const lastMessage = conversation.messages[conversation.messages.length - 1];
 			if (lastMessage.sender === 'ai') {
-				lastMessage.syncStatus = "synced";
+				lastMessage.syncStatus = "stream-complete";
 			}
 		}
-		conversation.syncStatus = "synced";
+		conversation.syncStatus = "pending";
 	});
 }
 
@@ -81,7 +81,7 @@ export default function StreamingInterface({ activeConversation }: Props) {
 				id: aiMessageId,
 				text: '',
 				sender: 'ai',
-				syncStatus: "pending",
+				syncStatus: "streaming",
 			};
 			await addMessage({ message: aiMessage, conversationId });
 			setStreamingMessageId(aiMessageId);

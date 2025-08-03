@@ -36,7 +36,7 @@ export type LocalMessage = {
 	id: string;
 	text: string;
 	sender: 'user' | 'ai';
-	syncStatus: "pending" | "synced" | "error" | "syncing";
+	syncStatus: "pending" | "synced" | "error" | "syncing" | "streaming" | "stream-complete";
 }
 
 export type LocalConversation = {
