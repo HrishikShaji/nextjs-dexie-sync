@@ -1,7 +1,7 @@
 import chatDB from "@/chatbot/local/chat-db"
 import { liveQuery } from "dexie"
 
-type SocketType = "CREATE_CONVERSATION_REQUEST" | "MESSAGE_SYNC_REQUEST"
+type SocketType = "CREATE_CONVERSATION_REQUEST" | "MESSAGE_SYNC_REQUEST" | "WARM_UP"
 
 function sendSocket({ type, data }: { type: SocketType; data: any }) {
   if (socket.readyState === WebSocket.OPEN) {
@@ -67,8 +67,14 @@ async function onConversationSync(data: any) {
 
 const socket = new WebSocket('ws://localhost:3001')
 
+
+
 socket.onopen = () => {
   console.log("@@CONNECTED IN WEB WORKER")
+  sendSocket({
+    type: "WARM_UP",
+    data: ""
+  })
 }
 
 socket.onclose = () => {
@@ -89,8 +95,10 @@ socket.onmessage = async (event) => {
       case "CREATE_CONVERSATION_RESPONSE":
         await onConversationSync(parsedData.data);
         break;
+      case "WARM_UP_STATUS":
+        console.log("@@WARMUP SUCCESSFULL")
       default:
-        // console.log("Unknown message type:", parsedData.type);
+        console.log("Unknown message type:", parsedData.type);
         break;
     }
   } catch (err) {
