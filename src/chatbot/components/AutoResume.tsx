@@ -1,17 +1,17 @@
 "use client"
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader, RefreshCw, Play, Trash2 } from 'lucide-react';
+import { Send, Bot, User, Loader, Trash2 } from 'lucide-react';
 
-const WorkingResumableChat = () => {
+const AutoResumeChat = () => {
 	const [messages, setMessages] = useState([]);
 	const [input, setInput] = useState('');
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [currentSession, setCurrentSession] = useState(null);
 	const [lastChunkIndex, setLastChunkIndex] = useState(0);
 	const [status, setStatus] = useState('ready');
-	const [showResumeButton, setShowResumeButton] = useState(false);
 	const messagesEndRef = useRef(null);
 	const eventSourceRef = useRef(null);
+	const hasAutoResumed = useRef(false);
 
 	// LocalStorage keys
 	const STORAGE_KEYS = {
@@ -51,7 +51,7 @@ const WorkingResumableChat = () => {
 		}
 	};
 
-	// Load from localStorage
+	// Load from localStorage and return whether there's a resumable session
 	const loadFromLocalStorage = () => {
 		try {
 			const sessionId = localStorage.getItem(STORAGE_KEYS.SESSION_ID);
@@ -91,13 +91,12 @@ const WorkingResumableChat = () => {
 
 				setCurrentSession(sessionId);
 				setLastChunkIndex(chunkIndex);
-				setShowResumeButton(true);
-				return true;
+				return { hasSession: true, sessionId, chunkIndex };
 			}
 		} catch (error) {
 			console.error('Failed to load from localStorage:', error);
 		}
-		return false;
+		return { hasSession: false };
 	};
 
 	// Clear localStorage
@@ -123,9 +122,19 @@ const WorkingResumableChat = () => {
 		}
 	}, [currentSession, lastChunkIndex, messages, isStreaming]);
 
-	// Load session on mount
+	// Load session on mount and auto-resume if needed
 	useEffect(() => {
-		loadFromLocalStorage();
+		const sessionInfo = loadFromLocalStorage();
+
+		// Auto-resume if there's a session and we haven't already resumed
+		if (sessionInfo.hasSession && !hasAutoResumed.current) {
+			hasAutoResumed.current = true;
+			console.log('Auto-resuming stream...');
+			// Small delay to ensure UI has updated
+			setTimeout(() => {
+				connectToStream(sessionInfo.sessionId, sessionInfo.chunkIndex);
+			}, 100);
+		}
 	}, []);
 
 	// Cleanup on unmount
@@ -143,7 +152,6 @@ const WorkingResumableChat = () => {
 		}
 
 		setStatus('connecting');
-		setShowResumeButton(false);
 		const url = `http://localhost:3001/api/chat/stream?sessionId=${sessionId}&lastChunkIndex=${fromIndex}`;
 		console.log(`Connecting to: ${url}`);
 
@@ -196,7 +204,6 @@ const WorkingResumableChat = () => {
 					setCurrentSession(null);
 					setLastChunkIndex(0);
 					setStatus('ready');
-					setShowResumeButton(false);
 					eventSource.close();
 				}
 			} catch (error) {
@@ -207,23 +214,17 @@ const WorkingResumableChat = () => {
 		eventSource.onerror = (error) => {
 			console.error('EventSource error:', error);
 			setStatus('reconnecting');
-			setShowResumeButton(true);
 
-			// Don't auto-reconnect, let user manually resume
+			// Auto-retry after a delay
 			setTimeout(() => {
-				if (eventSourceRef.current) {
-					eventSourceRef.current.close();
+				if (currentSession && eventSourceRef.current) {
+					console.log('Auto-retrying connection...');
+					connectToStream(currentSession, lastChunkIndex);
+				} else {
+					setStatus('disconnected');
 				}
-				setStatus('disconnected');
-			}, 2000);
+			}, 3000); // Retry after 3 seconds
 		};
-	};
-
-	const resumeStream = () => {
-		if (currentSession) {
-			console.log(`Resuming stream: ${currentSession} from chunk: ${lastChunkIndex}`);
-			connectToStream(currentSession, lastChunkIndex);
-		}
 	};
 
 	const sendMessage = async () => {
@@ -272,8 +273,8 @@ const WorkingResumableChat = () => {
 		setMessages([]);
 		setCurrentSession(null);
 		setLastChunkIndex(0);
-		setShowResumeButton(false);
 		clearLocalStorage();
+		hasAutoResumed.current = false;
 		if (eventSourceRef.current) {
 			eventSourceRef.current.close();
 		}
@@ -310,7 +311,7 @@ const WorkingResumableChat = () => {
 					<div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
 						<Bot className="w-5 h-5 text-white" />
 					</div>
-					<h1 className="text-xl font-semibold text-white">LocalStorage Resumable Chat</h1>
+					<h1 className="text-xl font-semibold text-white">Auto-Resume Streaming Chat</h1>
 					<div className="ml-auto flex items-center gap-4">
 						{messages.length > 0 && (
 							<button
@@ -319,15 +320,6 @@ const WorkingResumableChat = () => {
 							>
 								<Trash2 className="w-4 h-4" />
 								Clear Chat
-							</button>
-						)}
-						{showResumeButton && (
-							<button
-								onClick={resumeStream}
-								className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-							>
-								<Play className="w-4 h-4" />
-								Resume Stream
 							</button>
 						)}
 						{currentSession && (
@@ -343,21 +335,26 @@ const WorkingResumableChat = () => {
 				</div>
 			</div>
 
-			{/* Resume Banner */}
-			{showResumeButton && (
-				<div className="bg-green-500/20 border-b border-green-500/30 p-3">
+			{/* Auto-Resume Notification */}
+			{status === 'connecting' && currentSession && (
+				<div className="bg-blue-500/20 border-b border-blue-500/30 p-3">
 					<div className="max-w-4xl mx-auto flex items-center gap-3">
-						<RefreshCw className="w-5 h-5 text-green-400" />
-						<div className="flex-1 text-green-300">
-							<strong>Stream interrupted!</strong> Click "Resume Stream" to continue where you left off.
+						<Loader className="w-5 h-5 text-blue-400 animate-spin" />
+						<div className="flex-1 text-blue-300">
+							<strong>Resuming stream...</strong> Automatically continuing from where you left off.
 						</div>
-						<button
-							onClick={resumeStream}
-							className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2"
-						>
-							<Play className="w-4 h-4" />
-							Resume Now
-						</button>
+					</div>
+				</div>
+			)}
+
+			{/* Reconnecting Notification */}
+			{status === 'reconnecting' && (
+				<div className="bg-orange-500/20 border-b border-orange-500/30 p-3">
+					<div className="max-w-4xl mx-auto flex items-center gap-3">
+						<Loader className="w-5 h-5 text-orange-400 animate-spin" />
+						<div className="flex-1 text-orange-300">
+							<strong>Connection lost!</strong> Automatically retrying in a few seconds...
+						</div>
 					</div>
 				</div>
 			)}
@@ -388,8 +385,8 @@ const WorkingResumableChat = () => {
 						</div>
 					))}
 
-					{/* Loading indicator when no streaming content yet */}
-					{isStreaming && (
+					{/* Loading indicator when streaming but no content yet */}
+					{isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
 						<div className="flex gap-4 justify-start">
 							<div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
 								<Loader className="w-5 h-5 text-white animate-spin" />
@@ -420,7 +417,7 @@ const WorkingResumableChat = () => {
 								value={input}
 								onChange={(e) => setInput(e.target.value)}
 								onKeyPress={handleKeyPress}
-								placeholder="Type your message... (State is saved in localStorage for easy resuming!)"
+								placeholder="Type your message... (Streams automatically resume on page reload!)"
 								className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-600/50 rounded-2xl px-4 py-3 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
 								rows="1"
 								style={{ minHeight: '52px', maxHeight: '120px' }}
@@ -445,4 +442,4 @@ const WorkingResumableChat = () => {
 	);
 };
 
-export default WorkingResumableChat;
+export default AutoResumeChat;
