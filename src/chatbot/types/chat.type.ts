@@ -46,5 +46,10 @@ export type LocalConversation = {
 	messages: LocalMessage[];
 	syncStatus: "pending" | "synced" | "error" | "new" | "syncing";
 	localCreatedAt?: Date;
+	sessionMetadata?: {
+		sessionId: string;
+		chunkIndex: number;
+		hasStreamingContent: boolean;
+	}
 };
 

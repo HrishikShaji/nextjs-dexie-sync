@@ -2,76 +2,55 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader, Trash2 } from 'lucide-react';
 import chatDB from '../local/chat-db';
+import ConnectionStatus from './ConnectionStatus';
+import StreamingChatMessages from './StreamingChatMessages';
+import ChatInput from './ChatInput';
+import { LocalConversation, LocalMessage } from '../types/chat.type';
 
 const AutoResumeDexie = () => {
-	const [messages, setMessages] = useState([]);
-	const [input, setInput] = useState('');
+	const [messages, setMessages] = useState<LocalMessage[]>([]);
 	const [isStreaming, setIsStreaming] = useState(false);
-	const [currentSession, setCurrentSession] = useState(null);
+	const [currentSession, setCurrentSession] = useState<string | null>(null);
 	const [lastChunkIndex, setLastChunkIndex] = useState(0);
 	const [status, setStatus] = useState('ready');
-	const messagesEndRef = useRef(null);
-	const eventSourceRef = useRef(null);
+	const [streamingMessageId, setStreamingMessageId] = useState(null)
+	const eventSourceRef = useRef<EventSource>(null);
 	const hasAutoResumed = useRef(false);
 
 	// Conversation ID for Dexie storage (equivalent to session storage)
 	const CONVERSATION_ID = 'resumable_chat_session';
 
-	const scrollToBottom = () => {
-		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-	};
 
-	useEffect(() => {
-		scrollToBottom();
-	}, [messages]);
-
-	// Convert messages format for storage
-	const convertMessagesToLocalFormat = (messages) => {
-		return messages.map((msg, index) => ({
-			id: `msg_${index}_${Date.now()}`,
-			text: msg.content,
-			sender: msg.role === 'user' ? 'user' : 'ai',
-			syncStatus: 'synced'
-		}));
-	};
-
-	// Convert from storage format back to component format
-	const convertFromLocalFormat = (localMessages) => {
-		return localMessages.map(msg => ({
-			role: msg.sender === 'user' ? 'user' : 'assistant',
-			content: msg.text
-		}));
-	};
 
 	// Save to Dexie when state changes
-	const saveToDexie = async (sessionId, chunkIndex, currentMessages, streamingContent = '') => {
+	const saveToDexie = async (sessionId: string, chunkIndex: number, currentMessages: LocalMessage[], streamingContent = '') => {
 		try {
 			let messagesToSave = [...currentMessages];
 
 			// If there's streaming content, handle it
 			if (streamingContent) {
-				if (messagesToSave.length > 0 && messagesToSave[messagesToSave.length - 1].role === 'assistant') {
+				if (messagesToSave.length > 0 && messagesToSave[messagesToSave.length - 1].sender === 'ai') {
 					// Append to existing assistant message
 					messagesToSave[messagesToSave.length - 1] = {
 						...messagesToSave[messagesToSave.length - 1],
-						content: messagesToSave[messagesToSave.length - 1].content + streamingContent
+						text: messagesToSave[messagesToSave.length - 1].text + streamingContent
 					};
 				} else {
 					// Create new assistant message
-					messagesToSave.push({ role: 'assistant', content: streamingContent });
+					messagesToSave.push({ sender: 'ai', text: streamingContent, syncStatus: "pending", id: crypto.randomUUID() });
 				}
 			}
 
 			if (sessionId && messagesToSave.length > 0) {
-				const conversation = {
+				const conversation: LocalConversation = {
 					id: CONVERSATION_ID,
 					title: 'Resumable Chat Session',
-					initialPrompt: messagesToSave[0]?.content || '',
-					messages: convertMessagesToLocalFormat(messagesToSave),
+					initialPrompt: messagesToSave[0]?.text || '',
+					messages: messagesToSave,
 					syncStatus: 'synced',
 					localCreatedAt: new Date(),
 					// Store session metadata in a custom field
-					_sessionMetadata: {
+					sessionMetadata: {
 						sessionId,
 						chunkIndex,
 						hasStreamingContent: !!streamingContent
@@ -90,14 +69,14 @@ const AutoResumeDexie = () => {
 		try {
 			const conversation = await chatDB.conversations.get(CONVERSATION_ID);
 
-			if (conversation && conversation._sessionMetadata) {
-				const { sessionId, chunkIndex, hasStreamingContent } = conversation._sessionMetadata;
+			if (conversation && conversation.sessionMetadata) {
+				const { sessionId, chunkIndex, hasStreamingContent } = conversation.sessionMetadata;
 
 				console.log(`Found session in Dexie: ${sessionId}, chunk: ${chunkIndex}`);
 
 				// Restore messages
 				if (conversation.messages && conversation.messages.length > 0) {
-					const restoredMessages = convertFromLocalFormat(conversation.messages);
+					const restoredMessages = conversation.messages;
 					setMessages(restoredMessages);
 					console.log('Restored messages:', restoredMessages);
 				}
@@ -129,12 +108,10 @@ const AutoResumeDexie = () => {
 			} else if (!isStreaming && messages.length > 0) {
 				// Clear session data when complete, but keep messages for display
 				try {
-					const conversation = await chatDB.conversations.get(CONVERSATION_ID);
-					if (conversation) {
-						// Remove session metadata but keep messages
-						delete conversation._sessionMetadata;
-						await chatDB.conversations.put(conversation);
-					}
+					await chatDB.conversations.where("id").equals(CONVERSATION_ID).modify((conversation) => {
+						const { sessionMetadata, ...newConversation } = conversation
+						conversation = newConversation
+					})
 				} catch (error) {
 					console.error('Failed to update conversation:', error);
 				}
@@ -172,7 +149,9 @@ const AutoResumeDexie = () => {
 		};
 	}, []);
 
-	const connectToStream = (sessionId, fromIndex = 0) => {
+	console.log(messages)
+
+	const connectToStream = (sessionId: string, fromIndex = 0) => {
 		if (eventSourceRef.current) {
 			eventSourceRef.current.close();
 		}
@@ -200,15 +179,15 @@ const AutoResumeDexie = () => {
 					setMessages(prev => {
 						const newMessages = [...prev];
 						// Check if the last message is an assistant message
-						if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'assistant') {
+						if (newMessages.length > 0 && newMessages[newMessages.length - 1].sender === 'ai') {
 							// Append to existing assistant message
 							newMessages[newMessages.length - 1] = {
 								...newMessages[newMessages.length - 1],
-								content: newMessages[newMessages.length - 1].content + data.content
+								text: newMessages[newMessages.length - 1].text + data.content
 							};
 						} else {
 							// Create new assistant message
-							newMessages.push({ role: 'assistant', content: data.content });
+							newMessages.push({ sender: "ai", text: data.content, syncStatus: "pending", id: crypto.randomUUID() });
 						}
 						return newMessages;
 					});
@@ -223,8 +202,10 @@ const AutoResumeDexie = () => {
 				} else if (data.type === 'error') {
 					console.error('Stream error:', data.error);
 					setMessages(prev => [...prev, {
-						role: 'assistant',
-						content: 'Sorry, there was an error processing your request.'
+						sender: 'ai',
+						text: 'Sorry, there was an error processing your request.',
+						syncStatus: "pending",
+						id: crypto.randomUUID()
 					}]);
 					setIsStreaming(false);
 					setCurrentSession(null);
@@ -253,14 +234,13 @@ const AutoResumeDexie = () => {
 		};
 	};
 
-	const sendMessage = async () => {
+	const sendMessage = async (input: string) => {
 		if (!input.trim() || isStreaming) return;
 
-		const userMessage = { role: 'user', content: input };
+		const userMessage: LocalMessage = { sender: "user", text: input, id: crypto.randomUUID(), syncStatus: "pending" };
 		const newMessages = [...messages, userMessage];
 		setMessages(newMessages);
 		const messageText = input;
-		setInput('');
 
 		setIsStreaming(true);
 		setLastChunkIndex(0);
@@ -284,11 +264,13 @@ const AutoResumeDexie = () => {
 			setCurrentSession(sessionId);
 			connectToStream(sessionId, 0);
 
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Error starting chat:', error);
 			setMessages(prev => [...prev, {
-				role: 'assistant',
-				content: `Error: ${error.message}`
+				id: crypto.randomUUID(),
+				sender: "ai",
+				syncStatus: "pending",
+				text: `Error: ${error.message}`
 			}]);
 			setIsStreaming(false);
 			setStatus('ready');
@@ -308,12 +290,6 @@ const AutoResumeDexie = () => {
 		setStatus('ready');
 	};
 
-	const handleKeyPress = (e) => {
-		if (e.key === 'Enter' && !e.shiftKey) {
-			e.preventDefault();
-			sendMessage();
-		}
-	};
 
 	const getStatusInfo = () => {
 		switch (status) {
@@ -330,140 +306,25 @@ const AutoResumeDexie = () => {
 	const statusInfo = getStatusInfo();
 
 	return (
-		<div className="flex flex-col h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-			{/* Header */}
-			<div className="bg-black/20 backdrop-blur-sm border-b border-purple-500/20 p-4">
-				<div className="max-w-4xl mx-auto flex items-center gap-3">
-					<div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-						<Bot className="w-5 h-5 text-white" />
-					</div>
-					<h1 className="text-xl font-semibold text-white">Auto-Resume Streaming Chat</h1>
-					<div className="ml-auto flex items-center gap-4">
-						{messages.length > 0 && (
-							<button
-								onClick={clearChat}
-								className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-							>
-								<Trash2 className="w-4 h-4" />
-								Clear Chat
-							</button>
-						)}
-						{currentSession && (
-							<div className="text-xs text-gray-400 font-mono">
-								{currentSession.slice(0, 8)}... (chunk: {lastChunkIndex})
-							</div>
-						)}
-						<div className="flex items-center gap-2">
-							<div className={`w-2 h-2 rounded-full ${statusInfo.color}`}></div>
-							<span className="text-sm text-gray-300">{statusInfo.text}</span>
-						</div>
-					</div>
-				</div>
+		<div className="flex-1 flex flex-col">
+			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center justify-between">
+				<ConnectionStatus
+					lastChunkIndex={lastChunkIndex}
+					messages={messages}
+					clearChat={clearChat}
+					statusInfo={statusInfo}
+					currentSession={currentSession}
+					status={status}
+				/>
 			</div>
-
-			{/* Auto-Resume Notification */}
-			{status === 'connecting' && currentSession && (
-				<div className="bg-blue-500/20 border-b border-blue-500/30 p-3">
-					<div className="max-w-4xl mx-auto flex items-center gap-3">
-						<Loader className="w-5 h-5 text-blue-400 animate-spin" />
-						<div className="flex-1 text-blue-300">
-							<strong>Resuming stream...</strong> Automatically continuing from where you left off.
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Reconnecting Notification */}
-			{status === 'reconnecting' && (
-				<div className="bg-orange-500/20 border-b border-orange-500/30 p-3">
-					<div className="max-w-4xl mx-auto flex items-center gap-3">
-						<Loader className="w-5 h-5 text-orange-400 animate-spin" />
-						<div className="flex-1 text-orange-300">
-							<strong>Connection lost!</strong> Automatically retrying in a few seconds...
-						</div>
-					</div>
-				</div>
-			)}
-
-			{/* Messages */}
-			<div className="flex-1 overflow-y-auto p-4">
-				<div className="max-w-4xl mx-auto space-y-6">
-					{messages.map((message, index) => (
-						<div key={index} className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-							{message.role === 'assistant' && (
-								<div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-									<Bot className="w-5 h-5 text-white" />
-								</div>
-							)}
-
-							<div className={`max-w-3xl rounded-2xl p-4 ${message.role === 'user'
-								? 'bg-blue-600 text-white ml-12'
-								: 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-700/50'
-								}`}>
-								<div className="whitespace-pre-wrap break-words">{message.content}</div>
-							</div>
-
-							{message.role === 'user' && (
-								<div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-									<User className="w-5 h-5 text-white" />
-								</div>
-							)}
-						</div>
-					))}
-
-					{/* Loading indicator when streaming but no content yet */}
-					{isStreaming && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
-						<div className="flex gap-4 justify-start">
-							<div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-								<Loader className="w-5 h-5 text-white animate-spin" />
-							</div>
-							<div className="max-w-3xl rounded-2xl p-4 bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-700/50">
-								<div className="flex items-center gap-2">
-									<div className="flex gap-1">
-										<div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-										<div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-										<div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-									</div>
-									<span className="text-sm text-gray-400">{statusInfo.text}</span>
-								</div>
-							</div>
-						</div>
-					)}
-
-					<div ref={messagesEndRef} />
-				</div>
-			</div>
-
-			{/* Input */}
-			<div className="bg-black/20 backdrop-blur-sm border-t border-purple-500/20 p-4">
-				<div className="max-w-4xl mx-auto">
-					<div className="flex gap-4 items-end">
-						<div className="flex-1 relative">
-							<textarea
-								value={input}
-								onChange={(e) => setInput(e.target.value)}
-								onKeyPress={handleKeyPress}
-								placeholder="Type your message... (Streams automatically resume on page reload!)"
-								className="w-full bg-gray-800/50 backdrop-blur-sm border border-gray-600/50 rounded-2xl px-4 py-3 text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-								rows="1"
-								style={{ minHeight: '52px', maxHeight: '120px' }}
-								disabled={isStreaming}
-							/>
-						</div>
-						<button
-							onClick={sendMessage}
-							disabled={!input.trim() || isStreaming}
-							className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-600 disabled:to-gray-600 disabled:cursor-not-allowed text-white p-3 rounded-full transition-all duration-200 flex items-center justify-center"
-						>
-							{isStreaming ? (
-								<Loader className="w-5 h-5 animate-spin" />
-							) : (
-								<Send className="w-5 h-5" />
-							)}
-						</button>
-					</div>
-				</div>
-			</div>
+			<StreamingChatMessages
+				messages={messages}
+				streamingMessageId={streamingMessageId}
+			/>
+			<ChatInput
+				isProcessing={isStreaming}
+				onSubmit={sendMessage}
+			/>
 		</div>
 	);
 };
