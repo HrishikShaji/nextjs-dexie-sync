@@ -109,8 +109,6 @@ async function updateStreamComplete(conversationId: string) {
 
 const NewAutoResume = () => {
 	const [isStreaming, setIsStreaming] = useState(false);
-	const [currentSession, setCurrentSession] = useState<string | null>(null);
-	const [lastChunkIndex, setLastChunkIndex] = useState(0);
 	const [status, setStatus] = useState('ready');
 	const [streamingMessageId, setStreamingMessageId] = useState(null)
 	const eventSourceRef = useRef<EventSource>(null);
@@ -123,35 +121,7 @@ const NewAutoResume = () => {
 	)
 
 	const messages = liveConversation?.messages || []
-	// Conversation ID for Dexie storage (equivalent to session storage)
-	// Load from Dexie and return whether there's a resumable session
-	const loadFromDexie = async () => {
-		try {
-			const conversation = await chatDB.conversations.get(CONVERSATION_ID);
-			console.log("@@Conversation", conversation)
-			if (conversation && conversation.sessionMetadata) {
-				const { sessionId, chunkIndex, hasStreamingContent, lastMessageId } = conversation.sessionMetadata;
 
-				console.log(`Found session in Dexie: ${sessionId}, chunk: ${chunkIndex}`);
-
-				// Restore messages
-				if (conversation.messages && conversation.messages.length > 0) {
-					const restoredMessages = conversation.messages;
-					// setMessages(restoredMessages);
-					console.log('Restored messages:', restoredMessages);
-				}
-
-				setCurrentSession(sessionId);
-				setLastChunkIndex(chunkIndex);
-				return { hasSession: true, sessionId, chunkIndex, lastMessageId };
-			}
-		} catch (error) {
-			console.error('Failed to load from Dexie:', error);
-		}
-		return { hasSession: false };
-	};
-
-	// Clear Dexie storage
 	const clearDexie = async () => {
 		try {
 			await chatDB.conversations.delete(CONVERSATION_ID);
@@ -163,10 +133,11 @@ const NewAutoResume = () => {
 
 	useEffect(() => {
 		const initializeSession = async () => {
-			const sessionInfo = await loadFromDexie();
+			const sessionInfo = liveConversation?.sessionMetadata;
 
+			if (!sessionInfo) return
 			// Auto-resume if there's a session and we haven't already resumed
-			if (sessionInfo.hasSession && !hasAutoResumed.current) {
+			if (!hasAutoResumed.current) {
 				hasAutoResumed.current = true;
 				console.log('Auto-resuming stream...');
 				// Small delay to ensure UI has updated
@@ -178,7 +149,7 @@ const NewAutoResume = () => {
 		};
 
 		initializeSession();
-	}, []);
+	}, [liveConversation]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -224,20 +195,15 @@ const NewAutoResume = () => {
 						chunkIndex: data.chunkIndex + 1,
 						text: data.content
 					})
-					setLastChunkIndex(data.chunkIndex + 1);
 				} else if (data.type === 'done') {
 					console.log('Stream completed');
 					setIsStreaming(false);
-					setCurrentSession(null);
-					setLastChunkIndex(0);
 					setStatus('ready');
 					await updateStreamComplete(CONVERSATION_ID)
 					eventSource.close();
 				} else if (data.type === 'error') {
 					console.error('Stream error:', data.error);
 					setIsStreaming(false);
-					setCurrentSession(null);
-					setLastChunkIndex(0);
 					setStatus('ready');
 					eventSource.close();
 				}
@@ -247,18 +213,8 @@ const NewAutoResume = () => {
 		};
 
 		eventSource.onerror = (error) => {
-			console.log('EventSource error:', error);
+			console.error('EventSource error:', error);
 			setStatus('reconnecting');
-
-			// Auto-retry after a delay
-			setTimeout(() => {
-				if (currentSession && eventSourceRef.current) {
-					console.log('Auto-retrying connection...');
-					connectToStream(currentSession, lastChunkIndex, messageId);
-				} else {
-					setStatus('disconnected');
-				}
-			}, 3000); // Retry after 3 seconds
 		};
 	};
 
@@ -278,11 +234,9 @@ const NewAutoResume = () => {
 		}
 
 		const newMessages = [...messages, userMessage];
-		// setMessages(newMessages);
 		const messageText = input;
 
 		setIsStreaming(true);
-		setLastChunkIndex(0);
 		setStatus('starting');
 
 		const assistantMessage: LocalMessage = { sender: "ai", text: "", id: crypto.randomUUID(), syncStatus: "pending" }
@@ -310,7 +264,6 @@ const NewAutoResume = () => {
 				sessionId
 			})
 
-			setCurrentSession(sessionId);
 			connectToStream(sessionId, 0, assistantMessage.id);
 
 		} catch (error: any) {
@@ -321,8 +274,6 @@ const NewAutoResume = () => {
 	};
 
 	const clearChat = async () => {
-		setCurrentSession(null);
-		setLastChunkIndex(0);
 		await clearDexie();
 		hasAutoResumed.current = false;
 		if (eventSourceRef.current) {
@@ -338,10 +289,10 @@ const NewAutoResume = () => {
 		<div className="flex-1 h-full flex flex-col">
 			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center justify-between">
 				<ConnectionStatus
-					lastChunkIndex={lastChunkIndex}
+					lastChunkIndex={liveConversation?.sessionMetadata?.chunkIndex}
 					messages={messages}
 					clearChat={clearChat}
-					currentSession={currentSession}
+					currentSession={liveConversation?.sessionMetadata?.sessionId}
 					status={status}
 				/>
 			</div>
