@@ -6,6 +6,7 @@ import ConnectionStatus from './ConnectionStatus';
 import StreamingChatMessages from './StreamingChatMessages';
 import ChatInput from './ChatInput';
 import { LocalConversation, LocalMessage } from '../types/chat.type';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 async function saveUserMessage({ conversationId, message }: { conversationId: string; message: LocalMessage; }) {
 	try {
@@ -98,8 +99,15 @@ async function updateAssistantMessage({
 	})
 }
 
+async function updateStreamComplete(conversationId: string) {
+	await chatDB.conversations.where("id").equals(conversationId).modify((conversation) => {
+		const { sessionMetadata, ...newConversation } = conversation
+		conversation = newConversation
+	})
+
+}
+
 const NewAutoResume = () => {
-	const [messages, setMessages] = useState<LocalMessage[]>([]);
 	const [isStreaming, setIsStreaming] = useState(false);
 	const [currentSession, setCurrentSession] = useState<string | null>(null);
 	const [lastChunkIndex, setLastChunkIndex] = useState(0);
@@ -107,9 +115,15 @@ const NewAutoResume = () => {
 	const [streamingMessageId, setStreamingMessageId] = useState(null)
 	const eventSourceRef = useRef<EventSource>(null);
 	const hasAutoResumed = useRef(false);
-
-	// Conversation ID for Dexie storage (equivalent to session storage)
 	const CONVERSATION_ID = 'resumable_chat_session';
+
+	const liveConversation = useLiveQuery(() =>
+		chatDB.conversations.where("id").equals(CONVERSATION_ID).first(),
+		[]
+	)
+
+	const messages = liveConversation?.messages || []
+	// Conversation ID for Dexie storage (equivalent to session storage)
 	// Load from Dexie and return whether there's a resumable session
 	const loadFromDexie = async () => {
 		try {
@@ -123,7 +137,7 @@ const NewAutoResume = () => {
 				// Restore messages
 				if (conversation.messages && conversation.messages.length > 0) {
 					const restoredMessages = conversation.messages;
-					setMessages(restoredMessages);
+					// setMessages(restoredMessages);
 					console.log('Restored messages:', restoredMessages);
 				}
 
@@ -146,26 +160,7 @@ const NewAutoResume = () => {
 		}
 	};
 
-	// Update Dexie when state changes
-	useEffect(() => {
-		const updateStorage = async () => {
-			if (!isStreaming && messages.length > 0) {
-				// Clear session data when complete, but keep messages for display
-				try {
-					await chatDB.conversations.where("id").equals(CONVERSATION_ID).modify((conversation) => {
-						const { sessionMetadata, ...newConversation } = conversation
-						conversation = newConversation
-					})
-				} catch (error) {
-					console.error('Failed to update conversation:', error);
-				}
-			}
-		};
 
-		updateStorage();
-	}, [currentSession, lastChunkIndex, messages, isStreaming]);
-
-	// Load session on mount and auto-resume if needed
 	useEffect(() => {
 		const initializeSession = async () => {
 			const sessionInfo = await loadFromDexie();
@@ -229,21 +224,6 @@ const NewAutoResume = () => {
 						chunkIndex: data.chunkIndex + 1,
 						text: data.content
 					})
-					setMessages(prev => {
-						const newMessages = [...prev];
-						// Check if the last message is an assistant message
-						if (newMessages.length > 0 && newMessages[newMessages.length - 1].sender === 'ai') {
-							// Append to existing assistant message
-							newMessages[newMessages.length - 1] = {
-								...newMessages[newMessages.length - 1],
-								text: newMessages[newMessages.length - 1].text + data.content
-							};
-						} else {
-							// Create new assistant message
-							newMessages.push({ sender: "ai", text: data.content, syncStatus: "pending", id: crypto.randomUUID() });
-						}
-						return newMessages;
-					});
 					setLastChunkIndex(data.chunkIndex + 1);
 				} else if (data.type === 'done') {
 					console.log('Stream completed');
@@ -251,15 +231,10 @@ const NewAutoResume = () => {
 					setCurrentSession(null);
 					setLastChunkIndex(0);
 					setStatus('ready');
+					await updateStreamComplete(CONVERSATION_ID)
 					eventSource.close();
 				} else if (data.type === 'error') {
 					console.error('Stream error:', data.error);
-					setMessages(prev => [...prev, {
-						sender: 'ai',
-						text: 'Sorry, there was an error processing your request.',
-						syncStatus: "pending",
-						id: crypto.randomUUID()
-					}]);
 					setIsStreaming(false);
 					setCurrentSession(null);
 					setLastChunkIndex(0);
@@ -272,7 +247,7 @@ const NewAutoResume = () => {
 		};
 
 		eventSource.onerror = (error) => {
-			console.error('EventSource error:', error);
+			console.log('EventSource error:', error);
 			setStatus('reconnecting');
 
 			// Auto-retry after a delay
@@ -303,7 +278,7 @@ const NewAutoResume = () => {
 		}
 
 		const newMessages = [...messages, userMessage];
-		setMessages(newMessages);
+		// setMessages(newMessages);
 		const messageText = input;
 
 		setIsStreaming(true);
@@ -340,19 +315,12 @@ const NewAutoResume = () => {
 
 		} catch (error: any) {
 			console.error('Error starting chat:', error);
-			setMessages(prev => [...prev, {
-				id: crypto.randomUUID(),
-				sender: "ai",
-				syncStatus: "pending",
-				text: `Error: ${error.message}`
-			}]);
 			setIsStreaming(false);
 			setStatus('ready');
 		}
 	};
 
 	const clearChat = async () => {
-		setMessages([]);
 		setCurrentSession(null);
 		setLastChunkIndex(0);
 		await clearDexie();
