@@ -132,6 +132,7 @@ const AutoResumeDexie = () => {
 				console.log('Auto-resuming stream...');
 				// Small delay to ensure UI has updated
 				setTimeout(() => {
+					if (!sessionInfo.sessionId) return
 					connectToStream(sessionInfo.sessionId, sessionInfo.chunkIndex);
 				}, 100);
 			}
@@ -291,28 +292,14 @@ const AutoResumeDexie = () => {
 	};
 
 
-	const getStatusInfo = () => {
-		switch (status) {
-			case 'ready': return { color: 'bg-gray-400', text: 'Ready' };
-			case 'starting': return { color: 'bg-yellow-400 animate-pulse', text: 'Starting...' };
-			case 'connecting': return { color: 'bg-blue-400 animate-pulse', text: 'Connecting...' };
-			case 'streaming': return { color: 'bg-green-400 animate-pulse', text: 'Streaming' };
-			case 'reconnecting': return { color: 'bg-orange-400 animate-pulse', text: 'Reconnecting...' };
-			case 'disconnected': return { color: 'bg-red-400', text: 'Disconnected' };
-			default: return { color: 'bg-gray-400', text: 'Ready' };
-		}
-	};
-
-	const statusInfo = getStatusInfo();
 
 	return (
-		<div className="flex-1 flex flex-col">
+		<div className="flex-1 h-full flex flex-col">
 			<div className="bg-white border-b border-gray-200 px-2 h-[60px] flex items-center justify-between">
 				<ConnectionStatus
 					lastChunkIndex={lastChunkIndex}
 					messages={messages}
 					clearChat={clearChat}
-					statusInfo={statusInfo}
 					currentSession={currentSession}
 					status={status}
 				/>

@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function ChatInput({ onSubmit, isProcessing }: Props) {
-	const [inputValue, setInputValue] = useState("")
+	const [inputValue, setInputValue] = useState("write an extremely large essay on quantum mechanics minimum 10000 words")
 	async function handleSubmit(e: FormEvent) {
 		e.preventDefault()
 		try {

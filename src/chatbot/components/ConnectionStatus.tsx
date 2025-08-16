@@ -5,12 +5,24 @@ interface Props {
 	currentSession: string | null;
 	lastChunkIndex: number;
 	messages: LocalMessage[];
-	statusInfo: Record<string, any>;
 	clearChat: () => void;
 	status: string;
 }
+const getStatusInfo = (status: string) => {
+	switch (status) {
+		case 'ready': return { color: 'bg-gray-400', text: 'Ready' };
+		case 'starting': return { color: 'bg-yellow-400 animate-pulse', text: 'Starting...' };
+		case 'connecting': return { color: 'bg-blue-400 animate-pulse', text: 'Connecting...' };
+		case 'streaming': return { color: 'bg-green-400 animate-pulse', text: 'Streaming' };
+		case 'reconnecting': return { color: 'bg-orange-400 animate-pulse', text: 'Reconnecting...' };
+		case 'disconnected': return { color: 'bg-red-400', text: 'Disconnected' };
+		default: return { color: 'bg-gray-400', text: 'Ready' };
+	}
+};
 
-export default function ConnectionStatus({ status, clearChat, statusInfo, currentSession, lastChunkIndex, messages }: Props) {
+
+export default function ConnectionStatus({ status, clearChat, currentSession, lastChunkIndex, messages }: Props) {
+	const statusInfo = getStatusInfo(status);
 	return (
 		<>
 			<div className="bg-black/20 backdrop-blur-sm border-b border-purple-500/20 p-4">

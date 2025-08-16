@@ -5,7 +5,7 @@ import WorkingResumableChat from "@/chatbot/components/LocalResume";
 
 export default function Page() {
 	return (
-		<div>
+		<div className="h-screen">
 			<AutoResumeDexie />
 			{/* <AutoResumeChat /> */}
 
