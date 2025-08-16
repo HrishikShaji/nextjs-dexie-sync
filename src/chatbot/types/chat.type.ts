@@ -50,6 +50,7 @@ export type LocalConversation = {
 		sessionId: string;
 		chunkIndex: number;
 		hasStreamingContent: boolean;
+		lastMessageId: string;
 	}
 };
 
