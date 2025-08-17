@@ -213,8 +213,9 @@ const NewAutoResume = () => {
 		};
 
 		eventSource.onerror = (error) => {
-			console.error('EventSource error:', error);
+			console.log('EventSource error:', error);
 			setStatus('reconnecting');
+
 		};
 	};
 

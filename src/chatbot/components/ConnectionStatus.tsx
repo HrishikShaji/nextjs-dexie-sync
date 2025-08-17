@@ -4,7 +4,6 @@ import { LocalMessage } from "../types/chat.type";
 interface Props {
 	currentSession: string | null;
 	lastChunkIndex: number;
-	messages: LocalMessage[];
 	clearChat: () => void;
 	status: string;
 }
@@ -21,7 +20,7 @@ const getStatusInfo = (status: string) => {
 };
 
 
-export default function ConnectionStatus({ status, clearChat, currentSession, lastChunkIndex, messages }: Props) {
+export default function ConnectionStatus({ status, clearChat, currentSession, lastChunkIndex }: Props) {
 	const statusInfo = getStatusInfo(status);
 	return (
 		<>
@@ -32,15 +31,13 @@ export default function ConnectionStatus({ status, clearChat, currentSession, la
 					</div>
 					<h1 className="text-xl font-semibold text-white">Auto-Resume Streaming Chat</h1>
 					<div className="ml-auto flex items-center gap-4">
-						{messages.length > 0 && (
-							<button
-								onClick={clearChat}
-								className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
-							>
-								<Trash2 className="w-4 h-4" />
-								Clear Chat
-							</button>
-						)}
+						<button
+							onClick={clearChat}
+							className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-full text-sm flex items-center gap-2"
+						>
+							<Trash2 className="w-4 h-4" />
+							Clear Chat
+						</button>
 						{currentSession && (
 							<div className="text-xs text-gray-400 font-mono">
 								{currentSession.slice(0, 8)}... (chunk: {lastChunkIndex})
